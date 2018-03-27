@@ -11,7 +11,7 @@ LDFLAGS = `$(LLVMCONFIG) --ldflags` -lpthread -ldl -lz -lncurses -rdynamic
 LIBS = `$(LLVMCONFIG) --libs`
 
 clean:
-	$(RM) -rf c.tab.cpp c.tab.hpp cc c.lex.cpp *.ll *.bc $(OBJS)
+	$(RM) -rf c.tab.cpp c.tab.hpp cc c.lex.cpp $(OBJS) *.ll *.bc
 
 c.tab.cpp: c.y
 	bison -d c.y -o c.tab.cpp
@@ -32,4 +32,4 @@ test: cc test.c
 	@ rm test.ll; rm test.bc; make > /dev/null 2> /dev/null; ./cc test.c > /dev/null 2> test.ll; llvm-as test.ll;lli test.bc 
 
 check: cc test.c
-	./cc test.c > /dev/null ;echo "To run the code with lli run \"make test\""
+	./cc test.c ;echo "To run the code with lli run \"make test\""

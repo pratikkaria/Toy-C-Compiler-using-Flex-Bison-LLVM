@@ -749,6 +749,6 @@ expression
 
 void yyerror(const char *s)
 {
-	fflush(stdout);
-	fprintf(stderr, "*** %s\n", s);
+	//fflush(stdout);
+	printf("*** %s\n", s);
 }
