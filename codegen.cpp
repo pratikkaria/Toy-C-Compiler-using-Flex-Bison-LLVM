@@ -39,6 +39,50 @@ static Type *typeOf(const IdentiferNode &type, bool isPtr) {
     return Type::getVoidTy(llvmContext);
 }
 
+
+
+static int findInConstant(CodeGenContext &context, string name) {
+    if (context.const_locals().find(name) != context.const_locals().end()) {
+        return context.const_locals()[name];
+    }
+    return -1;
+}
+
+static bool isThisConstant(CodeGenContext &context, string name) {
+    if (context.const_locals().find(name) != context.const_locals().end()) {
+        return true;
+    }
+    return false;
+}
+
+//
+//static int isThisConstant(CodeGenContext context, IdentiferNode *node){
+//
+//}
+//static bool isThisConstant(ASTNode *node, CodeGenContext context){
+//    cout<<"Is this constant"<<endl;
+//    if(dynamic_cast<IntNode *>(node))
+//        return true;
+//
+//    if(node->isConstant)
+//        return true;
+//
+//    cout<<"Searching"<<endl;
+//    if(dynamic_cast<IdentiferNode *>(node)){
+//
+//        if (
+//                findInConstant(
+//                        context,
+//                        (
+//                                (IdentiferNode *)&node
+//                        )->name
+//                ) != nullptr){
+//            return true;
+//        }
+//    }
+//
+//    return false;
+//}
 static Value *findIdentifierValue(CodeGenContext &context, string name) {
     if (context.isBlocksEmpty()) {
         cout << "Checking global" << endl;
@@ -275,7 +319,13 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
         }
         if (assignmentExpr != NULL) {
             AssignmentNode assn(id, assignmentExpr, isPtr);
-            assn.codeGen(context);
+            Value *val = assn.codeGen(context);
+            if(assignmentExpr->isConstant){
+                cout<<"======> ADDING Variable assignment is constant"<<endl;
+                context.const_locals()[id.name] = assignmentExpr->const_value;
+                id.isConstant = true;
+                id.const_value = assignmentExpr->const_value;
+            }
         }
         return alloc;
     } else {
@@ -481,6 +531,14 @@ Value *StringNode::codeGen(CodeGenContext &context) {
 
 Value *IdentiferNode::codeGen(CodeGenContext &context) {
     std::cout << "Creating identifier reference: " << name << endl;
+
+//    Value *const_ptr = findInConstant(context, name);
+//    if(const_ptr!= nullptr){
+//        cout<<"====> This identifier: "<<name<<" is a constant"<<endl;
+//        cout<<"====>"<<isConstant<<endl;
+////        return  const_ptr;
+//    }
+
     Value *ident_ptr = findIdentifierValue(context, name);
     if (ident_ptr == nullptr) {
         cerr << "Error: Variable is not defined" << endl;
@@ -594,19 +652,30 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     Value *rval = rhs.codeGen(context);
     cout << "rval done" << endl;
 
-    if(lhs.isConstant)
-        cout<<"==========>lhs is constant: "<<endl;
-    if(rhs.isConstant) {
-        cout << "==========>rhs is constant: " << endl;
+    if(lhs.isConstant) {
+        cout << "==========>lhs is constant: " << endl;
     }else{
-        cout<<"========>rhs is not constant. "<< typeid(rhs).name()<<endl;
+        cout<<"========>lhs is not constant. "<< typeid(lhs).name()<<endl;
+        cout<<"isconstant: "<<lhs.isConstant<<endl;
     }
-
+    if(dynamic_cast<IdentiferNode *>(&rhs)){
+        if(isThisConstant(context, ((IdentiferNode *)&rhs)->name)) {
+            int rhs_val = findInConstant(context, ((IdentiferNode *) &rhs)->name);
+            if (rhs_val != -1) {
+                cout << "==========>rhs is constant: " << endl;
+                rhs.isConstant = true;
+                rhs.const_value = rhs_val;
+            }
+        }
+    }
+//    if(rhs.isConstant) {
+//    }else{
+//        cout<<"========>rhs is not constant. "<< typeid(rhs).name()<<endl;
+//    }
+//
     if(lhs.isConstant && rhs.isConstant){
-
-        int val = ((IntNode *)&lhs)->value + ((IntNode *)&rhs)->value;
+        int val = lhs.const_value+rhs.const_value;
         IntNode *intNode = new IntNode(val);
-        cout<<"==========>lhs is constant: "<<val<<endl;
 //        return intNode->codeGen(context);
     }
 

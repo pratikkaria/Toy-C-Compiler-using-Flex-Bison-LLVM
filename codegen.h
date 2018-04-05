@@ -30,6 +30,7 @@ public:
     BasicBlock *block;
     Value *returnValue;
     map<string, Value *> locals;
+    map<string, int> const_locals;
     CodeGenBlock *parent;
 };
 
@@ -49,6 +50,7 @@ public:
     void generateCode(BlockNode &rootNode);
 
     map<std::string, Value *> &locals() { return blocks.top()->locals; }
+    map<std::string, int > &const_locals() { return blocks.top()->const_locals; }
     CodeGenBlock *currentCgenBlock() {
         return blocks.top();
     }

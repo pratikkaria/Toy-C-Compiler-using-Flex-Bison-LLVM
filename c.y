@@ -152,6 +152,7 @@ constant
 			}else{
 		 		$$ = new IntNode(atoi($1->c_str()));
 				$$->isConstant = true;
+				$$->const_value = atoi($1->c_str());
 	 		}
 		  delete $1;
 		}else{

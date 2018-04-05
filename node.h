@@ -24,6 +24,7 @@ class ASTNode {
 public:
     bool debug = true;
     bool isConstant = false;
+    int const_value;
     virtual Value *codeGen(CodeGenContext &context) { return NULL; }
 };
 
@@ -278,8 +279,8 @@ public:
     }
 
     //Required for parser files
-    AssignmentNode(ExprNode &expression, bool _isPtr = false) :
-            id(((AssignmentNode *) &expression)->id) {
+    AssignmentNode(ExprNode &idexpr, bool _isPtr = false) :
+            id(((AssignmentNode *) &idexpr)->id) {
         isPtr = _isPtr;
         assignmentExpr = NULL;
         if (debug) {
@@ -301,7 +302,7 @@ public:
             id(id), assignmentExpr(assignmentExpr) {
         isPtr = _isptr;
         isConstant = assignmentExpr->isConstant;
-//        id.isConstant = isConstant;
+        id.isConstant = isConstant;
 
         if (debug) {
             cout << "+++++++++++++++++++++++++" << endl;
