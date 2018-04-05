@@ -7,9 +7,21 @@ using namespace std;
 
 extern void yyerror(const char *);
 
+bool secondpass = false;
+
 void CodeGenContext::generateCode(BlockNode &rootNode) {
     cout << "Generating code for ROOT...";
+    cout << "1 Size: " << this->variable_use().size() << endl;
     rootNode.codeGen(*this);
+
+    secondpass = true;
+    cout << "1 Size: " << this->variable_use().size() << endl;
+    module = new Module("main", llvmContext);
+    cout << "1 Size: " << this->variable_use().size() << endl;
+    rootNode.codeGen(*this);
+    cout << "1 Size: " << this->variable_use().size() << endl;
+
+
     module->dump();
 }
 
@@ -40,16 +52,22 @@ static Type *typeOf(const IdentiferNode &type, bool isPtr) {
 }
 
 
-
 static int findInConstant(CodeGenContext &context, string name) {
     if (context.const_locals().find(name) != context.const_locals().end()) {
         return context.const_locals()[name];
     }
-    return -1;
 }
 
 static bool isThisConstant(CodeGenContext &context, string name) {
     if (context.const_locals().find(name) != context.const_locals().end()) {
+        return true;
+    }
+    return false;
+}
+
+
+static bool isThisVariableUsed(CodeGenContext &context, string name) {
+    if (context.variable_use().find(name) != context.variable_use().end()) {
         return true;
     }
     return false;
@@ -91,25 +109,48 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
     cout << "Generating code for Block" << endl;
     StatementList::const_iterator it;
     Value *last = NULL;
-    for (it = statements.begin(); it != statements.end(); it++) {
-        cout << "\nGenerating code for " << typeid(**it).name() << endl;
-        last = (**it).codeGen(context);
-    }
 
-    cout<<"***************"<<endl;
-    for (it = statements.begin(); it != statements.end(); it++) {
-        cout << "\nGenerating code for " << typeid(**it).name()<<": ";
-        if(dynamic_cast<VariableDeclaration *>(*it)){
-            cout<<((VariableDeclaration *)(*it))->id->name
-                <<" used: "<<((VariableDeclaration *)(*it))->isUsed
-                    <<" isconstant: "<<((VariableDeclaration *)(*it))->isConstant
-                    <<endl;
-        }else{
-            cout<<endl;
+    if (!secondpass) {
+        for (it = statements.begin(); it != statements.end(); it++) {
+            cout << "\nGenerating code for " << typeid(**it).name() << endl;
+            last = (**it).codeGen(context);
+        }
+
+        cout << "***************" << endl;
+//    cout<<"2 Size: "<<context.variable_use().size()<<endl;
+
+        for (it = statements.begin(); it != statements.end(); it++) {
+            cout << "\nGenerating code for " << typeid(**it).name() << ": ";
+            if (dynamic_cast<VariableDeclaration *>(*it)) {
+                cout << ((VariableDeclaration *) (*it))->id->name
+                     << " used: " << isThisVariableUsed(context, ((VariableDeclaration *) (*it))->id->name)
+                     << " isconstant: " << ((VariableDeclaration *) (*it))->isConstant
+                     << endl;
+            } else {
+                cout << endl;
+            }
+        }
+        cout << "***************" << endl;
+    } else {
+
+        cout << "##################SECOND PASS#################" << endl;
+
+        for (it = statements.begin(); it != statements.end(); it++) {
+            cout << "\nGenerating code for " << typeid(**it).name() << endl;
+            if (dynamic_cast<VariableDeclaration *>(*it)) {
+                if (!isThisVariableUsed(context, ((VariableDeclaration *) (*it))->id->name)) {
+                    cout << ((VariableDeclaration *) (*it))->id->name
+                         << " used: " << isThisVariableUsed(context, ((VariableDeclaration *) (*it))->id->name)
+                         << " isconstant: " << ((VariableDeclaration *) (*it))->isConstant
+                         << endl;
+                    cout << "SKIPPING" << endl;
+                    continue;
+                }
+            }
+            cout << "Generating" << endl;
+            last = (**it).codeGen(context);
         }
     }
-    cout<<"***************"<<endl;
-
     return last;
 }
 
@@ -291,13 +332,11 @@ Value *ExprBoolNode::codeGen(CodeGenContext &context) {
 Value *VariableDeclaration::codeGen(CodeGenContext &context) {
     isUsed = true;
     cout << "Creating code for Variable declaration: " << endl;
-        cout << "Var: Type: " << storageType->type->name << endl;
-        cout << "Var: Name: " << id->name << endl;
+    cout << "Var: Type: " << storageType->type->name << endl;
+    cout << "Var: Name: " << id->name << endl;
 
     //checking const
-//    if(findInConstant(context, id.name)){
-//        return
-//    }
+
 
     if (!context.isBlocksEmpty()) {
         // Local
@@ -305,22 +344,28 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
                                            context.currentBlock());
         if (context.locals().find(id->name) == context.locals().end()) {
             context.locals()[id->name] = alloc;
-        }  else {
+        } else {
             yyerror("Variable Already defined");
+        }
+        if (isThisConstant(context, id->name)) {
+            return context.const_values()[id->name];
         }
         if (assignmentExpr != NULL) {
             AssignmentNode assn(*id, assignmentExpr, isPtr);
             Value *val = assn.codeGen(context);
-            if(assignmentExpr->isConstant){
-                cout<<"======> ADDING Variable assignment is constant"<<endl;
+            if (assignmentExpr->isConstant) {
+                cout << "======> ADDING Variable assignment is constant" << endl;
+
                 context.const_locals()[id->name] = assignmentExpr->const_value;
+                context.const_values()[id->name] = alloc;
+
                 isConstant = true;
                 const_value = assignmentExpr->const_value;
 
                 id->isConstant = true;
                 id->const_value = const_value;
-            }else{
-                cout<<"========>This is not constant"<<endl;
+            } else {
+                cout << "========>This is not constant" << endl;
             }
         }
         return alloc;
@@ -447,9 +492,9 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
 
     }
     // THi is the normal assignment, example a =10;
-    cout<<"Is assig expr constant: "<<assignmentExpr->isConstant<<endl;
+    cout << "Is assig expr constant: " << assignmentExpr->isConstant << endl;
     Value *assig_val = assignmentExpr->codeGen(context);
-    cout<<"Is assig expr constant: "<<assignmentExpr->isConstant<<endl;
+    cout << "Is assig expr constant: " << assignmentExpr->isConstant << endl;
     isConstant = assignmentExpr->isConstant;
     const_value = assignmentExpr->const_value;
     return new StoreInst(assig_val,
@@ -498,9 +543,11 @@ Value *StringNode::codeGen(CodeGenContext &context) {
         value.replace(pos, 2, 1, '\n');
     }
     pos = value.find("\"");
-    value.erase(pos, 1);
+    if (pos != string::npos)
+        value.erase(pos, 1);
     pos = value.find("\"");
-    value.erase(pos, 1);
+    if (pos != string::npos)
+        value.erase(pos, 1);
 
 
 //    cout << "String code gen: " << value << endl;
@@ -517,7 +564,7 @@ Value *StringNode::codeGen(CodeGenContext &context) {
     llvm::Constant *zero =
             llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(llvmContext));
 
-    std::vector<llvm::Constant *> indices;
+    std::vector < llvm::Constant * > indices;
     indices.push_back(zero);
     indices.push_back(zero);
     llvm::Constant *var_ref = llvm::ConstantExpr::getGetElementPtr(
@@ -531,14 +578,7 @@ Value *StringNode::codeGen(CodeGenContext &context) {
 
 Value *IdentiferNode::codeGen(CodeGenContext &context) {
     cout << "=================Creating identifier reference: " << name << endl;
-
-//    Value *const_ptr = findInConstant(context, name);
-//    if(const_ptr!= nullptr){
-//        cout<<"====> This identifier: "<<name<<" is a constant"<<endl;
-//        cout<<"====>"<<isConstant<<endl;
-////        return  const_ptr;
-//    }
-
+    context.variable_use()[name] = true;
     Value *ident_ptr = findIdentifierValue(context, name);
     if (ident_ptr == nullptr) {
         cerr << "Error: Variable is not defined" << endl;
@@ -554,7 +594,7 @@ Value *FunctionCallNode::codeGen(CodeGenContext &context) {
         std::cerr << "no such function " << id.name << endl;
         return NULL;
     }
-    std::vector<Value *> args;
+    std::vector < Value * > args;
     ExpressionList::const_iterator it;
     for (it = arguments.begin(); it != arguments.end(); it++) {
         args.push_back((**it).codeGen(context));
@@ -648,30 +688,30 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     math:
     cout << "Creating instruction: " << op << endl;
 
-    if(lhs.isConstant) {
+    if (lhs.isConstant) {
         cout << "==========>lhs is constant: " << endl;
-    }else{
-        cout<<"========>lhs is not constant. "<< typeid(lhs).name()<<endl;
-        cout<<"isconstant: "<<lhs.isConstant<<endl;
+    } else {
+        cout << "========>lhs is not constant. " << typeid(lhs).name() << endl;
+        cout << "isconstant: " << lhs.isConstant << endl;
     }
-    if(dynamic_cast<IdentiferNode *>(&rhs)){
-        if(isThisConstant(context, ((IdentiferNode *)&rhs)->name)) {
+    if (dynamic_cast<IdentiferNode *>(&rhs)) {
+        if (isThisConstant(context, ((IdentiferNode *) &rhs)->name)) {
             int rhs_val = findInConstant(context, ((IdentiferNode *) &rhs)->name);
-//                rhs.isConstant = true;
-                rhs.const_value = rhs_val;
+            rhs.isConstant = true;
+            rhs.const_value = rhs_val;
         }
     }
-    if(lhs.isConstant && rhs.isConstant){
+    if (lhs.isConstant && rhs.isConstant) {
         int val;
         switch (op) {
             case '+':
-                val= lhs.const_value+rhs.const_value;
+                val = lhs.const_value + rhs.const_value;
                 break;
             case '-':
-                val= lhs.const_value-rhs.const_value;
+                val = lhs.const_value - rhs.const_value;
                 break;
             case '*':
-                val= lhs.const_value*rhs.const_value;
+                val = lhs.const_value * rhs.const_value;
                 break;
             default:
                 goto no_const;
@@ -697,7 +737,7 @@ Value *FunctionDeclarationNode::codeGen(CodeGenContext &context) {
         cout << "==Type: " << storageType->type->name << endl;
         cout << "==isPtr: " << isPtr << endl;
     }
-    vector<Type *> argTypes;
+    vector < Type * > argTypes;
     VariableList::const_iterator it;
     for (it = arguments.begin(); it != arguments.end(); it++) {
         argTypes.push_back(typeOf(*(**it).storageType->type, (**it).isPtr));
@@ -723,7 +763,7 @@ Value *FunctionDefinitionNode::codeGen(CodeGenContext &context) {
     VariableList::const_iterator it;
     Function *function = context.module->getFunction(id.name.c_str());
     if (function == NULL) {
-        vector<Type *> argTypes;
+        vector < Type * > argTypes;
 
         for (it = arguments.begin(); it != arguments.end(); it++) {
             argTypes.push_back(typeOf(*(**it).storageType->type, (**it).isPtr));
