@@ -148,8 +148,10 @@ constant
 			long val = atol($1->c_str());
 			if(val > 2147483647){
 				$$ = new LongNode(val);
+				$$->isConstant = true;
 			}else{
 		 		$$ = new IntNode(atoi($1->c_str()));
+				$$->isConstant = true;
 	 		}
 		  delete $1;
 		}else{
@@ -157,8 +159,8 @@ constant
 		}
 			cout<<"Detected as I__CONSTANT\n";
 	 }
-	| F_CONSTANT	{ $$ = new DoubleNode(atof($1->c_str())); delete $1;cout<<"Detected as IF__CONSTANT\n";  }
-	| B_CONSTANT  { $$ = new BoolNode(*$1); delete $1;cout<<"Detected as B__CONSTANT\n" ; }
+	| F_CONSTANT	{ $$ = new DoubleNode(atof($1->c_str())); delete $1;cout<<"Detected as IF__CONSTANT\n";$$->isConstant = true;  }
+	| B_CONSTANT  { $$ = new BoolNode(*$1); delete $1;cout<<"Detected as B__CONSTANT\n" ;$$->isConstant = true; }
 	| ENUMERATION_CONSTANT
 	;
 

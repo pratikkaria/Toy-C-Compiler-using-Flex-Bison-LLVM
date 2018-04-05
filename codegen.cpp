@@ -67,9 +67,6 @@ static Value *findIdentifierValue(CodeGenContext &context, string name) {
         cerr << "**** Error Undeclared Variable: " << name << endl;
         return nullptr;
     }
-
-    cerr << "**** Error Undeclared Variable: " << name << endl;
-    return nullptr;
 }
 
 
@@ -339,11 +336,7 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
                 }
                 return gvar;
             } else {
-                cout << "It has been initialized" << endl;
-//                cout << id_val->getValueType() << endl;
-//                return new StoreInst(assignmentExpr->codeGen(context),
-//                                     id_val, false,
-//                                     context.currentBlock());
+                cout << "The global has already been has been initialized" << endl;
             }
         } else {
             std::cerr << "undeclared variable " << id.name << endl;
@@ -407,6 +400,7 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
 //            cout<<"Assign: Not Supported: "<<op<<endl;
 
     }
+    // THi is the normal assignment, example a =10;
     normaalassig:
     return new StoreInst(assignmentExpr->codeGen(context),
                          id_val, false, context.currentBlock());
@@ -599,6 +593,23 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     cout << "lval done" << endl;
     Value *rval = rhs.codeGen(context);
     cout << "rval done" << endl;
+
+    if(lhs.isConstant)
+        cout<<"==========>lhs is constant: "<<endl;
+    if(rhs.isConstant) {
+        cout << "==========>rhs is constant: " << endl;
+    }else{
+        cout<<"========>rhs is not constant. "<< typeid(rhs).name()<<endl;
+    }
+
+    if(lhs.isConstant && rhs.isConstant){
+
+        int val = ((IntNode *)&lhs)->value + ((IntNode *)&rhs)->value;
+        IntNode *intNode = new IntNode(val);
+        cout<<"==========>lhs is constant: "<<val<<endl;
+//        return intNode->codeGen(context);
+    }
+
 
     Value *ret = BinaryOperator::Create(instr, lhs.codeGen(context),
                                         rhs.codeGen(context), "", context.currentBlock());

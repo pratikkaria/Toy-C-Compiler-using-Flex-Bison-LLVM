@@ -60,6 +60,7 @@ public:
         return blocks.top()->block;
     }
     bool isBlocksEmpty() {
+        // this means these are global declaration
         return (blocks.size() == 0);
     }
     int getSize() {

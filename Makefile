@@ -33,3 +33,6 @@ test: cc test.c
 
 check: cc test.c
 	./cc test.c ;echo "To run the code with lli run \"make test\""
+
+code: cc opt.c
+	./cc opt.c 

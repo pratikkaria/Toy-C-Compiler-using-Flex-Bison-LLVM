@@ -23,11 +23,13 @@ typedef vector<VariableDeclaration *> VariableList;
 class ASTNode {
 public:
     bool debug = true;
-
+    bool isConstant = false;
     virtual Value *codeGen(CodeGenContext &context) { return NULL; }
 };
 
 class ExprNode : public ASTNode {
+public:
+    bool  isConstant = false;
 };
 
 class StmtNode : public ASTNode {
@@ -178,20 +180,8 @@ public:
 
     BinaryOperatorNode(ExprNode &lhs, int op, ExprNode &rhs) :
             lhs(lhs), rhs(rhs), op(op) {
-        cout << "++++++++++" << endl;
-        cout << "BO: " << op << endl;
-        cout << "lhs: " << &lhs << endl;
-        cout << "rhs: " << &rhs << endl;
-        cout << "-----------" << endl;
     }
-//    BinaryOperatorNode(IdentiferNode &lhs, char op, ExprNode &rhs) :
-//            lhs(lhs), rhs(rhs), op(op) {
-//        cout << "++++++++++" << endl;
-//        cout << "BO: 1: " << op << endl;
-//        cout << "lhs: " << &lhs << endl;
-//        cout << "rhs: " << &rhs << endl;
-//        cout << "-----------" << endl;
-//    }
+
 
     virtual Value *codeGen(CodeGenContext &context);
 };
@@ -261,14 +251,6 @@ public:
 
     void setOp(int op) {
         AssignmentNode::op = op;
-//        switch (op) {
-//            case ADD_ASSIGN:
-//                assignmentExpr = new BinaryOperatorNode(id, '+', id);
-//                break;
-//            case '=':
-//            default:
-//                cout << "Nothing to be done\n";
-//        }
     }
 
     IdentiferNode &getId() {
@@ -318,11 +300,15 @@ public:
     AssignmentNode(IdentiferNode &id, ExprNode *assignmentExpr, bool _isptr = false) :
             id(id), assignmentExpr(assignmentExpr) {
         isPtr = _isptr;
+        isConstant = assignmentExpr->isConstant;
+//        id.isConstant = isConstant;
+
         if (debug) {
             cout << "+++++++++++++++++++++++++" << endl;
             cout << "VA 2 " << endl;
             cout << "Name: " << id.name << endl;
             cout << "IsPtr: " << isPtr << endl;
+            cout << "IsConstant: " << isConstant << endl;
             if (assignmentExpr)
                 cout << "Assig: " << assignmentExpr << "\n ";
             else
@@ -335,7 +321,8 @@ public:
     // Required for parser files
     AssignmentNode(ExprNode &expression, ExprNode *assignmentExpr) :
             id(((AssignmentNode *) &expression)->id), assignmentExpr(assignmentExpr) {
-
+        isConstant = assignmentExpr->isConstant;
+//        id.isConstant = isConstant;
         if (dynamic_cast<AssignmentNode *>(&expression)) {
             if (debug) {
                 cout << "Assingment Node" << endl;
@@ -357,8 +344,7 @@ public:
         if (debug) {
             cout << "+++++++++++++++++++++++++" << endl;
             cout << "VA 3 " << endl;
-//            cout << "Name: "<<id.name << endl;
-//            cout << "IsPtr: "<<isPtr << endl;
+            cout << "IsConstant: " << isConstant << endl;
             if (assignmentExpr)
                 cout << "Assig: " << assignmentExpr << "\n ";
             else
@@ -446,6 +432,9 @@ public:
     VariableDeclaration(QualStorageTypeNode &storageType, ExprNode &assig) :
             storageType(&storageType),
             id(((AssignmentNode *) &assig)->getId()) {
+        if(assig.isConstant){
+            cout<<"======> Assignment is constant"<<endl;
+        }
 
         assignmentExpr = ((AssignmentNode *) &assig)->assignmentExpr;
         isPtr = ((AssignmentNode *) &assig)->isPtr;
@@ -461,6 +450,7 @@ public:
                 assignmentExpr = new IntNode(((DoubleNode *) assignmentExpr)->value);
             }
         }
+
 
         if (debug) {
             cout << "+++++++++++++++++++++++++" << endl;
