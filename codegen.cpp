@@ -55,34 +55,6 @@ static bool isThisConstant(CodeGenContext &context, string name) {
     return false;
 }
 
-//
-//static int isThisConstant(CodeGenContext context, IdentiferNode *node){
-//
-//}
-//static bool isThisConstant(ASTNode *node, CodeGenContext context){
-//    cout<<"Is this constant"<<endl;
-//    if(dynamic_cast<IntNode *>(node))
-//        return true;
-//
-//    if(node->isConstant)
-//        return true;
-//
-//    cout<<"Searching"<<endl;
-//    if(dynamic_cast<IdentiferNode *>(node)){
-//
-//        if (
-//                findInConstant(
-//                        context,
-//                        (
-//                                (IdentiferNode *)&node
-//                        )->name
-//                ) != nullptr){
-//            return true;
-//        }
-//    }
-//
-//    return false;
-//}
 static Value *findIdentifierValue(CodeGenContext &context, string name) {
     if (context.isBlocksEmpty()) {
         cout << "Checking global" << endl;
@@ -123,7 +95,20 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
         cout << "\nGenerating code for " << typeid(**it).name() << endl;
         last = (**it).codeGen(context);
     }
-    cout << "Creating Block" << endl;
+
+    cout<<"***************"<<endl;
+    for (it = statements.begin(); it != statements.end(); it++) {
+        cout << "\nGenerating code for " << typeid(**it).name()<<": ";
+        if(dynamic_cast<VariableDeclaration *>(*it)){
+            cout<<((VariableDeclaration *)(*it))->id.name
+                <<" used: "<<((VariableDeclaration *)(*it))->isUsed
+                    <<" isconstant: "<<((VariableDeclaration *)(*it))->isConstant
+                    <<endl;
+        }else{
+            cout<<endl;
+        }
+    }
+    cout<<"***************"<<endl;
 
     return last;
 }
@@ -304,12 +289,18 @@ Value *ExprBoolNode::codeGen(CodeGenContext &context) {
 }
 
 Value *VariableDeclaration::codeGen(CodeGenContext &context) {
+    isUsed = true;
     cout << "Creating code for Variable declaration: " << endl;
-    if (debug) {
         cout << "Var: Type: " << storageType->type->name << endl;
         cout << "Var: Name: " << id.name << endl;
-    }
+
+    //checking const
+//    if(findInConstant(context, id.name)){
+//        return
+//    }
+
     if (!context.isBlocksEmpty()) {
+        // Local
         AllocaInst *alloc = new AllocaInst(typeOf(*(storageType->type), isPtr), id.name.c_str(),
                                            context.currentBlock());
         if (context.locals().find(id.name) == context.locals().end()) {
@@ -323,8 +314,13 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
             if(assignmentExpr->isConstant){
                 cout<<"======> ADDING Variable assignment is constant"<<endl;
                 context.const_locals()[id.name] = assignmentExpr->const_value;
+                isConstant = true;
+                const_value = assignmentExpr->const_value;
+
                 id.isConstant = true;
-                id.const_value = assignmentExpr->const_value;
+                id.const_value = const_value;
+            }else{
+                cout<<"========>This is not constant"<<endl;
             }
         }
         return alloc;
@@ -451,8 +447,12 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
 
     }
     // THi is the normal assignment, example a =10;
-    normaalassig:
-    return new StoreInst(assignmentExpr->codeGen(context),
+    cout<<"Is assig expr constant: "<<assignmentExpr->isConstant<<endl;
+    Value *assig_val = assignmentExpr->codeGen(context);
+    cout<<"Is assig expr constant: "<<assignmentExpr->isConstant<<endl;
+    isConstant = assignmentExpr->isConstant;
+    const_value = assignmentExpr->const_value;
+    return new StoreInst(assig_val,
                          id_val, false, context.currentBlock());
 
 }
@@ -530,7 +530,7 @@ Value *StringNode::codeGen(CodeGenContext &context) {
 //---------------
 
 Value *IdentiferNode::codeGen(CodeGenContext &context) {
-    std::cout << "Creating identifier reference: " << name << endl;
+    cout << "=================Creating identifier reference: " << name << endl;
 
 //    Value *const_ptr = findInConstant(context, name);
 //    if(const_ptr!= nullptr){
@@ -647,10 +647,6 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     }
     math:
     cout << "Creating instruction: " << op << endl;
-    Value *lval = lhs.codeGen(context);
-    cout << "lval done" << endl;
-    Value *rval = rhs.codeGen(context);
-    cout << "rval done" << endl;
 
     if(lhs.isConstant) {
         cout << "==========>lhs is constant: " << endl;
@@ -661,24 +657,32 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     if(dynamic_cast<IdentiferNode *>(&rhs)){
         if(isThisConstant(context, ((IdentiferNode *)&rhs)->name)) {
             int rhs_val = findInConstant(context, ((IdentiferNode *) &rhs)->name);
-            if (rhs_val != -1) {
-                cout << "==========>rhs is constant: " << endl;
-                rhs.isConstant = true;
+//                rhs.isConstant = true;
                 rhs.const_value = rhs_val;
-            }
         }
     }
-//    if(rhs.isConstant) {
-//    }else{
-//        cout<<"========>rhs is not constant. "<< typeid(rhs).name()<<endl;
-//    }
-//
     if(lhs.isConstant && rhs.isConstant){
-        int val = lhs.const_value+rhs.const_value;
+        int val;
+        switch (op) {
+            case '+':
+                val= lhs.const_value+rhs.const_value;
+                break;
+            case '-':
+                val= lhs.const_value-rhs.const_value;
+                break;
+            case '*':
+                val= lhs.const_value*rhs.const_value;
+                break;
+            default:
+                goto no_const;
+        }
+        isConstant = true;
+        const_value = val;
         IntNode *intNode = new IntNode(val);
-//        return intNode->codeGen(context);
+        return intNode->codeGen(context);
     }
 
+    no_const:
 
     Value *ret = BinaryOperator::Create(instr, lhs.codeGen(context),
                                         rhs.codeGen(context), "", context.currentBlock());

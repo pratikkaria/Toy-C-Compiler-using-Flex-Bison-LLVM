@@ -22,9 +22,10 @@ typedef vector<VariableDeclaration *> VariableList;
 
 class ASTNode {
 public:
-    bool debug = true;
+    bool debug = false;
     bool isConstant = false;
     int const_value;
+    bool isUsed = false;
     virtual Value *codeGen(CodeGenContext &context) { return NULL; }
 };
 
