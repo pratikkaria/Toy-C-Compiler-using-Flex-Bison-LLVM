@@ -692,9 +692,9 @@ relational_expression
 
 equality_expression
 	: relational_expression {}
-	| equality_expression EQ_OP relational_expression {$$ = new ExprBoolNode( $2, $1, $3);
+	| equality_expression EQ_OP relational_expression {$$ = new BinaryOperatorNode( $2, $1, $3);
 		}
-	| equality_expression NE_OP relational_expression {$$ = new ExprBoolNode($2, $1 , $3);
+	| equality_expression NE_OP relational_expression {$$ = new BinaryOperatorNode($2, $1 , $3);
 		}
 	;
 

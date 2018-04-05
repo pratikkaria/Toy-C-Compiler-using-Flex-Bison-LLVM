@@ -124,20 +124,20 @@ public:
     virtual Value *codeGen(CodeGenContext &context);
 };
 
-class ExprBoolNode : public ExprNode {
-public:
-    ExprNode *lhs;
-    ExprNode *rhs;
-    int op;
-
-    ExprBoolNode(int _op, ExprNode *_lhs, ExprNode *_rhs) {
-        op = _op;
-        lhs = _lhs;
-        rhs = _rhs;
-    }
-
-    virtual Value *codeGen(CodeGenContext &context);
-};
+//class ExprBoolNode : public ExprNode {
+//public:
+//    ExprNode *lhs;
+//    ExprNode *rhs;
+//    int op;
+//
+//    ExprBoolNode(int _op, ExprNode *_lhs, ExprNode *_rhs) {
+//        op = _op;
+//        lhs = _lhs;
+//        rhs = _rhs;
+//    }
+//
+//    virtual Value *codeGen(CodeGenContext &context);
+//};
 
 class StringNode : public ExprNode {
 public:
@@ -177,11 +177,17 @@ public:
 class BinaryOperatorNode : public ExprNode {
 public:
     int op;
-    ExprNode &lhs;
-    ExprNode &rhs;
+    ExprNode *lhs;
+    ExprNode *rhs;
+
+    BinaryOperatorNode(int _op, ExprNode *_lhs, ExprNode *_rhs) {
+        op = _op;
+        lhs = _lhs;
+        rhs = _rhs;
+    }
 
     BinaryOperatorNode(ExprNode &lhs, int op, ExprNode &rhs) :
-            lhs(lhs), rhs(rhs), op(op) {
+            lhs(&lhs), rhs(&rhs), op(op) {
     }
 
 
@@ -558,7 +564,7 @@ class IfNode : public StmtNode {
 public:
     BlockNode *truecond;
     BlockNode *falsecond;
-    ExprBoolNode *cond;
+    BinaryOperatorNode *cond;
 
     IfNode(ExprNode *exprNode, BlockNode *true_blockNode, BlockNode *false_blockNode) {
         cout << "If Node 1" << endl;
@@ -566,12 +572,12 @@ public:
         if (dynamic_cast<IntNode *>(exprNode)) {
             IntNode *intNode = dynamic_cast<IntNode *>(exprNode);
             if (intNode->value > 0) {
-                cond = reinterpret_cast<ExprBoolNode *>(new BoolNode(true));
+                cond = reinterpret_cast<BinaryOperatorNode *>(new BoolNode(true));
             } else {
-                cond = reinterpret_cast<ExprBoolNode *>(new BoolNode(false));
+                cond = reinterpret_cast<BinaryOperatorNode *>(new BoolNode(false));
             }
         } else {
-            cond = (ExprBoolNode *) exprNode;
+            cond = (BinaryOperatorNode *) exprNode;
         }
         truecond = true_blockNode;
         falsecond = false_blockNode;
@@ -579,7 +585,7 @@ public:
 
     IfNode(ExprNode *exprNode, BlockNode *true_blockNode) {
         cout << "If Node 2" << endl;
-        cond = dynamic_cast<ExprBoolNode *>(exprNode);
+        cond = dynamic_cast<BinaryOperatorNode *>(exprNode);
         truecond = true_blockNode;
         falsecond = nullptr;
     }
@@ -589,14 +595,12 @@ public:
 
 class WhileLoopNode : public StmtNode {
 public:
-    ExprBoolNode *cond;
+    BinaryOperatorNode *cond;
     BlockNode *block;
-
-
     WhileLoopNode(ExprNode *exprNode, BlockNode *_block) {
         cout << "WHile Node 1" << endl;
         cout << typeid(*exprNode).name() << endl;
-        cond = (ExprBoolNode *) exprNode;
+        cond = (BinaryOperatorNode *) exprNode;
         block = _block;
     }
 
@@ -606,14 +610,14 @@ public:
 
 class DoWhileLoopNode : public StmtNode {
 public:
-    ExprBoolNode *cond;
+    BinaryOperatorNode *cond;
     BlockNode *block;
 
 
     DoWhileLoopNode(ExprNode *exprNode, BlockNode *_block) {
         cout << "WHile Node 1" << endl;
         cout << typeid(*exprNode).name() << endl;
-        cond = (ExprBoolNode *) exprNode;
+        cond = (BinaryOperatorNode *) exprNode;
         block = _block;
     }
 

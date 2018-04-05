@@ -286,14 +286,20 @@ Value *IfNode::codeGen(CodeGenContext &context) {
     BasicBlock *elseBlock = BasicBlock::Create(llvmContext, "else");
     BasicBlock *mergeBlock = BasicBlock::Create(llvmContext, "cont");
 
+    cout << "Blocks created" << endl;
+
     function->getBasicBlockList().push_back(thenBlock);
     Value *condValue = cond->codeGen(context);
 
-    if (falsecond != nullptr)
+    if (falsecond != nullptr) {
+        cout << "Here" << endl;
         BranchInst::Create(thenBlock, elseBlock, condValue, context.currentBlock());
-    else
+    } else {
+        cout << "Here 2" << endl;
         BranchInst::Create(thenBlock, mergeBlock, condValue, context.currentBlock());
+    }
 
+    cout << "Conds passed" << endl;
     // This is required so the the variables can be matched.
     context.pushBlock(thenBlock);
     Value *thenValue = truecond->codeGen(context);
@@ -318,19 +324,19 @@ Value *IfNode::codeGen(CodeGenContext &context) {
     return NULL;
 }
 
-Value *ExprBoolNode::codeGen(CodeGenContext &context) {
-    cout << "Creating Expression Bool operation " << op << endl;
-    IRBuilder<> builder(context.currentBlock());
-    switch (op) {
-        case EQ_OP:
-            return builder.CreateICmpEQ(lhs->codeGen(context), rhs->codeGen(context));
-        case NE_OP:
-            return builder.CreateICmpNE(lhs->codeGen(context), rhs->codeGen(context));
-        default:
-            cout << "ERROR..." << endl;
-            return nullptr;
-    }
-}
+//Value *ExprBoolNode::codeGen(CodeGenContext &context) {
+//    cout << "Creating Expression Bool operation " << op << endl;
+//    IRBuilder<> builder(context.currentBlock());
+//    switch (op) {
+//        case EQ_OP:
+//            return builder.CreateICmpEQ(lhs->codeGen(context), rhs->codeGen(context));
+//        case NE_OP:
+//            return builder.CreateICmpNE(lhs->codeGen(context), rhs->codeGen(context));
+//        default:
+//            cout << "ERROR..." << endl;
+//            return nullptr;
+//    }
+//}
 
 Value *VariableDeclaration::codeGen(CodeGenContext &context) {
     isUsed = true;
@@ -674,50 +680,50 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
             instr = Instruction::Xor;
             goto math;
         case NE_OP:
-            return builder.CreateICmpNE(lhs.codeGen(context), rhs.codeGen(context), "");
+            return builder.CreateICmpNE(lhs->codeGen(context), rhs->codeGen(context), "");
         case EQ_OP:
-            return builder.CreateICmpEQ(lhs.codeGen(context), rhs.codeGen(context), "");
+            return builder.CreateICmpEQ(lhs->codeGen(context), rhs->codeGen(context), "");
         case LE_OP:
-            return builder.CreateICmpSLE(lhs.codeGen(context), rhs.codeGen(context), "");
+            return builder.CreateICmpSLE(lhs->codeGen(context), rhs->codeGen(context), "");
         case GE_OP:
-            return builder.CreateICmpSGE(lhs.codeGen(context), rhs.codeGen(context), "");
+            return builder.CreateICmpSGE(lhs->codeGen(context), rhs->codeGen(context), "");
         case '>':
-            return builder.CreateICmpSGT(lhs.codeGen(context), rhs.codeGen(context), "");
+            return builder.CreateICmpSGT(lhs->codeGen(context), rhs->codeGen(context), "");
         case '<':
-            return builder.CreateICmpSLT(lhs.codeGen(context), rhs.codeGen(context), "");
+            return builder.CreateICmpSLT(lhs->codeGen(context), rhs->codeGen(context), "");
         default:
             cerr << "BINARY OPERATOR NOT SUPPORTED" << endl;
     }
     math:
     cout << "Creating instruction: " << op << endl;
 
-    if (dynamic_cast<IdentiferNode *>(&lhs)) {
-        if (isThisConstant(context, ((IdentiferNode *) &lhs)->name)) {
-            int lhs_val = findInConstant(context, ((IdentiferNode *) &lhs)->name);
-            lhs.isConstant = true;
-            lhs.const_value = lhs_val;
+    if (dynamic_cast<IdentiferNode *>(lhs)) {
+        if (isThisConstant(context, ((IdentiferNode *) lhs)->name)) {
+            int lhs_val = findInConstant(context, ((IdentiferNode *) lhs)->name);
+            lhs->isConstant = true;
+            lhs->const_value = lhs_val;
         }
     }
 
-    if (dynamic_cast<IdentiferNode *>(&rhs)) {
-        if (isThisConstant(context, ((IdentiferNode *) &rhs)->name)) {
-            int rhs_val = findInConstant(context, ((IdentiferNode *) &rhs)->name);
-            rhs.isConstant = true;
-            rhs.const_value = rhs_val;
+    if (dynamic_cast<IdentiferNode *>(rhs)) {
+        if (isThisConstant(context, ((IdentiferNode *) rhs)->name)) {
+            int rhs_val = findInConstant(context, ((IdentiferNode *) rhs)->name);
+            rhs->isConstant = true;
+            rhs->const_value = rhs_val;
         }
     }
 
-    if (lhs.isConstant && rhs.isConstant) {
+    if (lhs->isConstant && rhs->isConstant) {
         int val;
         switch (op) {
             case '+':
-                val = lhs.const_value + rhs.const_value;
+                val = lhs->const_value + rhs->const_value;
                 break;
             case '-':
-                val = lhs.const_value - rhs.const_value;
+                val = lhs->const_value - rhs->const_value;
                 break;
             case '*':
-                val = lhs.const_value * rhs.const_value;
+                val = lhs->const_value * rhs->const_value;
                 break;
             default:
                 goto no_const;
@@ -730,8 +736,8 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
 
     no_const:
 
-    Value *ret = BinaryOperator::Create(instr, lhs.codeGen(context),
-                                        rhs.codeGen(context), "", context.currentBlock());
+    Value *ret = BinaryOperator::Create(instr, lhs->codeGen(context),
+                                        rhs->codeGen(context), "", context.currentBlock());
     cout << "Inst Created" << endl;
     return ret;
 }
