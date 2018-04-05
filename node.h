@@ -409,11 +409,11 @@ class VariableDeclaration : public StmtNode {
 public:
     bool isPtr = false;
     QualStorageTypeNode *storageType;
-    IdentiferNode &id;
+    IdentiferNode *id;
     ExprNode *assignmentExpr;
 
     VariableDeclaration(const ExprNode &type, IdentiferNode &id) :
-            id(id), storageType(
+            id(&id), storageType(
             new QualStorageTypeNode(NULL, NULL, (IdentiferNode *) &type)) {
         assignmentExpr = NULL;
         if (debug) {
@@ -423,7 +423,7 @@ public:
 
 
     VariableDeclaration(const IdentiferNode &type, IdentiferNode &id) :
-            id(id), storageType(
+            id(&id), storageType(
             new QualStorageTypeNode(NULL, NULL, (IdentiferNode *) &type)) {
         assignmentExpr = NULL;
         if (debug) {
@@ -433,7 +433,7 @@ public:
 
     VariableDeclaration(QualStorageTypeNode &storageType, ExprNode &assig) :
             storageType(&storageType),
-            id(((AssignmentNode *) &assig)->getId()) {
+            id(&((AssignmentNode *) &assig)->getId()) {
         if(assig.isConstant){
             cout<<"======> Assignment is constant"<<endl;
         }
@@ -462,7 +462,7 @@ public:
             else
                 cout << "AssigExpr is NULL\n" << endl;
 
-            cout << "Name: " << id.name << endl;
+            cout << "Name: " << id->name << endl;
             cout << "isPtr: " << isPtr << endl;
             cout << "type: " << storageType.type->name << endl;
             cout << "qual: " << storageType.qualifier << endl;
@@ -472,12 +472,12 @@ public:
     }
 
     VariableDeclaration(QualStorageTypeNode &storageType, IdentiferNode &assig) :
-            id(assig),
+            id(&assig),
             storageType(&storageType) {
         if (debug) {
             cout << "VD 4" << endl;
             cout << (&assig)->name << endl;
-            cout << id.name << endl;
+            cout << id->name << endl;
             cout << "Debug OK" << endl;
         }
     }
@@ -522,7 +522,7 @@ public:
         isFunc = _isF;
         if (debug) {
             cout << "IP 2" << endl;
-            cout << "IP 2: " << _arguments.front()->id.name << endl;
+            cout << "IP 2: " << _arguments.front()->id->name << endl;
             cout << "IP 2: " << arguments.front()->storageType->type->name << endl;
             if (isFunc) {
                 cout << "THis is function" << endl;

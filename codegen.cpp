@@ -100,7 +100,7 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
     for (it = statements.begin(); it != statements.end(); it++) {
         cout << "\nGenerating code for " << typeid(**it).name()<<": ";
         if(dynamic_cast<VariableDeclaration *>(*it)){
-            cout<<((VariableDeclaration *)(*it))->id.name
+            cout<<((VariableDeclaration *)(*it))->id->name
                 <<" used: "<<((VariableDeclaration *)(*it))->isUsed
                     <<" isconstant: "<<((VariableDeclaration *)(*it))->isConstant
                     <<endl;
@@ -292,7 +292,7 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
     isUsed = true;
     cout << "Creating code for Variable declaration: " << endl;
         cout << "Var: Type: " << storageType->type->name << endl;
-        cout << "Var: Name: " << id.name << endl;
+        cout << "Var: Name: " << id->name << endl;
 
     //checking const
 //    if(findInConstant(context, id.name)){
@@ -301,32 +301,32 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
 
     if (!context.isBlocksEmpty()) {
         // Local
-        AllocaInst *alloc = new AllocaInst(typeOf(*(storageType->type), isPtr), id.name.c_str(),
+        AllocaInst *alloc = new AllocaInst(typeOf(*(storageType->type), isPtr), id->name.c_str(),
                                            context.currentBlock());
-        if (context.locals().find(id.name) == context.locals().end()) {
-            context.locals()[id.name] = alloc;
+        if (context.locals().find(id->name) == context.locals().end()) {
+            context.locals()[id->name] = alloc;
         }  else {
             yyerror("Variable Already defined");
         }
         if (assignmentExpr != NULL) {
-            AssignmentNode assn(id, assignmentExpr, isPtr);
+            AssignmentNode assn(*id, assignmentExpr, isPtr);
             Value *val = assn.codeGen(context);
             if(assignmentExpr->isConstant){
                 cout<<"======> ADDING Variable assignment is constant"<<endl;
-                context.const_locals()[id.name] = assignmentExpr->const_value;
+                context.const_locals()[id->name] = assignmentExpr->const_value;
                 isConstant = true;
                 const_value = assignmentExpr->const_value;
 
-                id.isConstant = true;
-                id.const_value = const_value;
+                id->isConstant = true;
+                id->const_value = const_value;
             }else{
                 cout<<"========>This is not constant"<<endl;
             }
         }
         return alloc;
     } else {
-        context.module->getOrInsertGlobal(id.name, typeOf(*(storageType->type), isPtr));
-        GlobalVariable *gVar = context.module->getNamedGlobal(id.name);
+        context.module->getOrInsertGlobal(id->name, typeOf(*(storageType->type), isPtr));
+        GlobalVariable *gVar = context.module->getNamedGlobal(id->name);
 
         if (!storageType->storage) {
             gVar->setLinkage(GlobalValue::InternalLinkage);
@@ -341,7 +341,7 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
         }
 
         if (assignmentExpr != NULL) {
-            AssignmentNode assn(id, assignmentExpr, isPtr);
+            AssignmentNode assn(*id, assignmentExpr, isPtr);
             assn.codeGen(context);
         }
         return NULL;
@@ -745,8 +745,8 @@ Value *FunctionDefinitionNode::codeGen(CodeGenContext &context) {
     for (it = arguments.begin(); it != arguments.end(); it++) {
         (**it).codeGen(context);
         argumentValue = &*argsValues++;
-        argumentValue->setName((*it)->id.name.c_str());
-        StoreInst *inst = new StoreInst(argumentValue, context.locals()[(*it)->id.name],
+        argumentValue->setName((*it)->id->name.c_str());
+        StoreInst *inst = new StoreInst(argumentValue, context.locals()[(*it)->id->name],
                                         false, bblock);
 
     }
