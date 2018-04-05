@@ -15,13 +15,11 @@ void CodeGenContext::generateCode(BlockNode &rootNode) {
     rootNode.codeGen(*this);
 
     secondpass = true;
-    int pass = 1;
+    int pass = 0;
     while (pass) {
-        cout << "1 Size: " << this->variable_use().size() << endl;
+        cout << "##################SECOND PASS#################" << endl;
         module = new Module("main", llvmContext);
-        cout << "1 Size: " << this->variable_use().size() << endl;
         rootNode.codeGen(*this);
-        cout << "1 Size: " << this->variable_use().size() << endl;
         pass--;
     }
 
@@ -136,7 +134,6 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
         cout << "***************" << endl;
     } else {
 
-        cout << "##################SECOND PASS#################" << endl;
 
         for (it = statements.begin(); it != statements.end(); it++) {
             cout << "\nGenerating code for " << typeid(**it).name() << endl;
@@ -281,6 +278,29 @@ Value *WhileLoopNode::codeGen(CodeGenContext &context) {
 Value *IfNode::codeGen(CodeGenContext &context) {
     cout << "Creating IF Statement" << endl;
     Function *function = context.currentBlock()->getParent();
+    Value *condValue = cond->codeGen(context);
+    if (cond->isConstant) {
+        cout << "in the IF block and this is constant" << endl;
+        if (cond->const_value == 1) {
+            Value *thenValue = truecond->codeGen(context);
+
+//            BasicBlock *thenBlock = BasicBlock::Create(llvmContext, "then", function);
+//            BasicBlock *mergeBlock = BasicBlock::Create(llvmContext, "cont");
+//
+//            function->getBasicBlockList().push_back(thenBlock);
+//            context.pushBlock(thenBlock);
+//            Value *thenValue = truecond->codeGen(context);
+//            BranchInst::Create(mergeBlock, context.currentBlock());
+//            context.popBlock();
+//            function->getBasicBlockList().push_back(mergeBlock);
+//            context.pushBlock(mergeBlock);
+        } else {
+            falsecond->codeGen(context);
+        }
+
+        return NULL;
+    }
+
 
     BasicBlock *thenBlock = BasicBlock::Create(llvmContext, "then", function);
     BasicBlock *elseBlock = BasicBlock::Create(llvmContext, "else");
@@ -289,7 +309,7 @@ Value *IfNode::codeGen(CodeGenContext &context) {
     cout << "Blocks created" << endl;
 
     function->getBasicBlockList().push_back(thenBlock);
-    Value *condValue = cond->codeGen(context);
+
 
     if (falsecond != nullptr) {
         cout << "Here" << endl;
@@ -648,6 +668,22 @@ Value *UnaryOperatorNode::codeGen(CodeGenContext &context) {
 
 Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     std::cout << "Creating binary operation " << op << endl;
+    if (dynamic_cast<IdentiferNode *>(lhs)) {
+        if (isThisConstant(context, ((IdentiferNode *) lhs)->name)) {
+            int lhs_val = findInConstant(context, ((IdentiferNode *) lhs)->name);
+            lhs->isConstant = true;
+            lhs->const_value = lhs_val;
+        }
+    }
+
+    if (dynamic_cast<IdentiferNode *>(rhs)) {
+        if (isThisConstant(context, ((IdentiferNode *) rhs)->name)) {
+            int rhs_val = findInConstant(context, ((IdentiferNode *) rhs)->name);
+            rhs->isConstant = true;
+            rhs->const_value = rhs_val;
+        }
+    }
+
     IRBuilder<> builder(context.currentBlock());
     Instruction::BinaryOps instr;
     switch (op) {
@@ -682,6 +718,20 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
         case NE_OP:
             return builder.CreateICmpNE(lhs->codeGen(context), rhs->codeGen(context), "");
         case EQ_OP:
+            if (lhs->isConstant && rhs->isConstant) {
+                cout << "THis is CONSTANT" << endl;
+                isConstant = true;
+
+                if (lhs->const_value == rhs->const_value) {
+                    const_value = 1;
+                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 1, true);
+                } else {
+                    const_value = 0;
+                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 0, true);
+
+                }
+            }
+            // return ConstantInt::get(Type::getInt32Ty(llvmContext), value, true);
             return builder.CreateICmpEQ(lhs->codeGen(context), rhs->codeGen(context), "");
         case LE_OP:
             return builder.CreateICmpSLE(lhs->codeGen(context), rhs->codeGen(context), "");
@@ -697,21 +747,7 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     math:
     cout << "Creating instruction: " << op << endl;
 
-    if (dynamic_cast<IdentiferNode *>(lhs)) {
-        if (isThisConstant(context, ((IdentiferNode *) lhs)->name)) {
-            int lhs_val = findInConstant(context, ((IdentiferNode *) lhs)->name);
-            lhs->isConstant = true;
-            lhs->const_value = lhs_val;
-        }
-    }
 
-    if (dynamic_cast<IdentiferNode *>(rhs)) {
-        if (isThisConstant(context, ((IdentiferNode *) rhs)->name)) {
-            int rhs_val = findInConstant(context, ((IdentiferNode *) rhs)->name);
-            rhs->isConstant = true;
-            rhs->const_value = rhs_val;
-        }
-    }
 
     if (lhs->isConstant && rhs->isConstant) {
         int val;
