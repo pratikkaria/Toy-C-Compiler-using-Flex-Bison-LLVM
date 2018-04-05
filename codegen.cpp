@@ -15,12 +15,15 @@ void CodeGenContext::generateCode(BlockNode &rootNode) {
     rootNode.codeGen(*this);
 
     secondpass = true;
-    cout << "1 Size: " << this->variable_use().size() << endl;
-    module = new Module("main", llvmContext);
-    cout << "1 Size: " << this->variable_use().size() << endl;
-    rootNode.codeGen(*this);
-    cout << "1 Size: " << this->variable_use().size() << endl;
-
+    int pass = 1;
+    while (pass) {
+        cout << "1 Size: " << this->variable_use().size() << endl;
+        module = new Module("main", llvmContext);
+        cout << "1 Size: " << this->variable_use().size() << endl;
+        rootNode.codeGen(*this);
+        cout << "1 Size: " << this->variable_use().size() << endl;
+        pass--;
+    }
 
     module->dump();
 }
@@ -688,12 +691,14 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     math:
     cout << "Creating instruction: " << op << endl;
 
-    if (lhs.isConstant) {
-        cout << "==========>lhs is constant: " << endl;
-    } else {
-        cout << "========>lhs is not constant. " << typeid(lhs).name() << endl;
-        cout << "isconstant: " << lhs.isConstant << endl;
+    if (dynamic_cast<IdentiferNode *>(&lhs)) {
+        if (isThisConstant(context, ((IdentiferNode *) &lhs)->name)) {
+            int lhs_val = findInConstant(context, ((IdentiferNode *) &lhs)->name);
+            lhs.isConstant = true;
+            lhs.const_value = lhs_val;
+        }
     }
+
     if (dynamic_cast<IdentiferNode *>(&rhs)) {
         if (isThisConstant(context, ((IdentiferNode *) &rhs)->name)) {
             int rhs_val = findInConstant(context, ((IdentiferNode *) &rhs)->name);
@@ -701,6 +706,7 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
             rhs.const_value = rhs_val;
         }
     }
+
     if (lhs.isConstant && rhs.isConstant) {
         int val;
         switch (op) {
