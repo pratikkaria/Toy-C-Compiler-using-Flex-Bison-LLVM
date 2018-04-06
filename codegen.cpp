@@ -14,7 +14,7 @@ void CodeGenContext::generateCode(BlockNode &rootNode) {
     rootNode.codeGen(*this);
 
     secondpass = true;
-    int pass = 1;
+    int pass = 0;
     while (pass) {
         cout << "##################SECOND PASS#################" << endl;
         module = new Module("main", llvmContext);
@@ -57,9 +57,32 @@ static int findInConstant(CodeGenContext &context, string name) {
     }
 }
 
+static int findInConstant(CodeGenContext &context, ASTNode *node) {
+    if (context.const_locals().find(((IdentiferNode *) node)->name) != context.const_locals().end()) {
+        return context.const_locals()[((IdentiferNode *) node)->name];
+    } else if (dynamic_cast<IntNode *>(node)) {
+        return ((IntNode *) node)->value;
+    }
+}
+
+static bool isThisConstant(CodeGenContext &context, ASTNode *node) {
+//    cout<<"#### isthisconstant: "<<endl;
+    if (dynamic_cast<IdentiferNode *>(node)) {
+//        cout<<"This is an identifer: "<<((IdentiferNode *)node)->name<<endl;
+        if (context.const_locals().find(((IdentiferNode *) node)->name) != context.const_locals().end()) {
+//            cout<<"Found it"<<endl;
+            return context.const_locals()[((IdentiferNode *) node)->name];
+        }
+    } else if (dynamic_cast<IntNode *>(node)) {
+//        cout<<"This is an int node"<<endl;
+        return true;
+    }
+    return false;
+}
+
 static bool isThisConstant(CodeGenContext &context, string name) {
     if (context.const_locals().find(name) != context.const_locals().end()) {
-        return true;
+        return context.const_locals()[name];
     }
     return false;
 }
@@ -122,7 +145,7 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
             if (dynamic_cast<VariableDeclaration *>(*it)) {
                 cout << ((VariableDeclaration *) (*it))->id->name
                      << " used: " << isThisVariableUsed(context, ((VariableDeclaration *) (*it))->id->name)
-                     << " isconstant: " << ((VariableDeclaration *) (*it))->isConstant
+                     << " isconstant: " << isThisConstant(context, ((VariableDeclaration *) (*it))->id->name)
                      << endl;
             } else {
                 cout << endl;
@@ -138,7 +161,7 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
                 if (!isThisVariableUsed(context, ((VariableDeclaration *) (*it))->id->name)) {
                     cout << ((VariableDeclaration *) (*it))->id->name
                          << " used: " << isThisVariableUsed(context, ((VariableDeclaration *) (*it))->id->name)
-                         << " isconstant: " << ((VariableDeclaration *) (*it))->isConstant
+                         << " isconstant: " << isThisConstant(context, ((VariableDeclaration *) (*it))->id->name)
                          << endl;
                     cout << "SKIPPING" << endl;
                     continue;
@@ -242,9 +265,12 @@ Value *WhileLoopNode::codeGen(CodeGenContext &context) {
     cout << "Creating code for: While loop" << endl;
     Function *function = context.currentBlock()->getParent();
     Value *condValue = cond->codeGen(context);
-    if (cond->isConstant && cond->const_value == 0) {
-        return NULL;
-    }
+
+//    if(context.optimization_phase) {
+//        if (cond->isConstant && cond->const_value == 0) {
+//            return NULL;
+//        }
+//    }
 
 
     BasicBlock *CondBB = BasicBlock::Create(llvmContext, "whlcond", function);
@@ -281,17 +307,20 @@ Value *IfNode::codeGen(CodeGenContext &context) {
     cout << "Creating IF Statement" << endl;
     Function *function = context.currentBlock()->getParent();
     Value *condValue = cond->codeGen(context);
-    if (cond->isConstant) {
-        if (debug)
-            cout << "in the IF block and this is constant" << endl;
-        if (cond->const_value == 1) {
-            Value *thenValue = truecond->codeGen(context);
-        } else {
-            falsecond->codeGen(context);
-        }
-
-        return NULL;
-    }
+//    if(context.optimization_phase) {
+//
+//        if (cond->isConstant) {
+//            if (debug)
+//                cout << "in the IF block and this is constant" << endl;
+//            if (cond->const_value == 1) {
+//                Value *thenValue = truecond->codeGen(context);
+//            } else {
+//                falsecond->codeGen(context);
+//            }
+//
+//            return NULL;
+//        }
+//    }
 
 
     BasicBlock *thenBlock = BasicBlock::Create(llvmContext, "then", function);
@@ -334,7 +363,7 @@ Value *IfNode::codeGen(CodeGenContext &context) {
 }
 
 Value *VariableDeclaration::codeGen(CodeGenContext &context) {
-    isUsed = true;
+
     cout << "Creating code for Variable declaration: " << endl;
     if (debug) {
         cout << "Var: Type: " << storageType->type->name << endl;
@@ -353,26 +382,27 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
         } else {
             yyerror("Variable Already defined");
         }
-        if (isThisConstant(context, id->name)) {
-            return context.const_values()[id->name];
-        }
+//        if (isThisConstant(context, id->name) && context.optimization_phase) {
+//            return context.const_values()[id->name];
+//        }
         if (assignmentExpr != NULL) {
             AssignmentNode assn(*id, assignmentExpr, isPtr);
             Value *val = assn.codeGen(context);
-            if (assignmentExpr->isConstant) {
+//            if (assignmentExpr->isConstant) {
 
-                context.const_locals()[id->name] = assignmentExpr->const_value;
+            cout << "++++++++Marking " << id->name << " constant" << endl;
+            context.const_locals()[id->name] = true;
                 context.const_values()[id->name] = alloc;
 
-                isConstant = true;
-                const_value = assignmentExpr->const_value;
+//                isConstant = true;
+//                const_value = assignmentExpr->const_value;
 
-                id->isConstant = true;
-                id->const_value = const_value;
-            } else {
-                if (debug)
-                    cout << "========>This is not constant" << endl;
-            }
+//                id->isConstant = true;
+//                id->const_value = const_value;
+//            } else {
+//                if (debug)
+//                    cout << "========>This is not constant" << endl;
+//            }
         }
         return alloc;
     } else {
@@ -442,6 +472,7 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
     }
 
     id_val = findIdentifierValue(context, getId().name);
+
     if (id_val == nullptr)
         return NULL;
     IRBuilder<> builder(context.currentBlock());
@@ -455,6 +486,8 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
             IRBuilder<> builder(context.currentBlock());
             inci = builder.CreateAdd(loadInst, tmp, "");
             builder.CreateStore(inci, id_val);
+            cout << "+++++++Marking " << getId().name << " NOT constant" << endl;
+            context.const_locals()[getId().name] = false;
             return inci;
         }
         case SUB_ASSIGN:
@@ -507,10 +540,22 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
     }
     // THi is the normal assignment, example a =10;
     Value *assig_val = assignmentExpr->codeGen(context);
-    isConstant = assignmentExpr->isConstant;
-    const_value = assignmentExpr->const_value;
+    if (dynamic_cast<BinaryOperatorNode *>(assignmentExpr)) {
+        cout << "got the constant value:" << ((BinaryOperatorNode *) assignmentExpr)->isConstant << endl;
+        if (!((BinaryOperatorNode *) assignmentExpr)->isConstant) {
+            cout << "+++++++Marking " << getId().name << " NOT constant" << endl;
+            context.const_locals()[getId().name] = false;
+        } else {
+            cout << "+++++++Marking " << getId().name << " constant" << endl;
+            context.const_locals()[getId().name] = true;
+        }
+    } else {
+        cout << "ERROR " << endl;
+    }
+
     return new StoreInst(assig_val,
                          id_val, false, context.currentBlock());
+
 
 }
 
@@ -629,6 +674,9 @@ Value *UnaryOperatorNode::codeGen(CodeGenContext &context) {
             IRBuilder<> builder(context.currentBlock());
             Value *inci = builder.CreateAdd(lhsvali, builder.getInt32(1), "");
             Value *stri = builder.CreateStore(inci, findIdentifierValue(context, ((IdentiferNode *) &lhs)->name));
+            cout << "+++++++Marking " << ((IdentiferNode *) &lhs)->name << " NOT constant in unary" << endl;
+            lhs.isConstant = false;
+            context.const_locals()[((IdentiferNode *) &lhs)->name] = false;
             if (onleft)
                 return inci;
             return lhsvali;
@@ -653,21 +701,26 @@ Value *UnaryOperatorNode::codeGen(CodeGenContext &context) {
 
 Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     std::cout << "Creating binary operation " << op << endl;
-    if (dynamic_cast<IdentiferNode *>(lhs)) {
-        if (isThisConstant(context, ((IdentiferNode *) lhs)->name)) {
-            int lhs_val = findInConstant(context, ((IdentiferNode *) lhs)->name);
-            lhs->isConstant = true;
-            lhs->const_value = lhs_val;
-        }
+    if (isThisConstant(context, lhs) && isThisConstant(context, rhs)) {
+        cout << "+++++++++" << "This binary op is constant" << endl;
+        this->isConstant = true;
+        isConstant = true;
     }
-
-    if (dynamic_cast<IdentiferNode *>(rhs)) {
-        if (isThisConstant(context, ((IdentiferNode *) rhs)->name)) {
-            int rhs_val = findInConstant(context, ((IdentiferNode *) rhs)->name);
-            rhs->isConstant = true;
-            rhs->const_value = rhs_val;
-        }
-    }
+//    if (dynamic_cast<IdentiferNode *>(lhs)) {
+//        if (isThisConstant(context, ((IdentiferNode *) lhs)->name) && context.optimization_phase) {
+//            int lhs_val = findInConstant(context, ((IdentiferNode *) lhs)->name);
+//            lhs->isConstant = true;
+//            lhs->const_value = lhs_val;
+//        }
+//    }
+//
+//    if (dynamic_cast<IdentiferNode *>(rhs)) {
+//        if (isThisConstant(context, ((IdentiferNode *) rhs)->name)) {
+//            int rhs_val = findInConstant(context, ((IdentiferNode *) rhs)->name);
+//            rhs->isConstant = true;
+//            rhs->const_value = rhs_val;
+//        }
+//    }
 
     IRBuilder<> builder(context.currentBlock());
     Instruction::BinaryOps instr;
@@ -704,50 +757,50 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
             instr = Instruction::Xor;
             goto math;
         case NE_OP:
-            if (lhs->isConstant && rhs->isConstant) {
-                if (debug)
-                    cout << "THis is CONSTANT" << endl;
-                isConstant = true;
-
-                if (lhs->const_value != rhs->const_value) {
-                    const_value = 1;
-                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 1, true);
-                } else {
-                    const_value = 0;
-                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 0, true);
-
-                }
-            }
+//            if (lhs->isConstant && rhs->isConstant) {
+//                if (debug)
+//                    cout << "THis is CONSTANT" << endl;
+//                isConstant = true;
+//
+//                if (lhs->const_value != rhs->const_value) {
+//                    const_value = 1;
+//                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 1, true);
+//                } else {
+//                    const_value = 0;
+//                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 0, true);
+//
+//                }
+//            }
 
             return builder.CreateICmpNE(lhs->codeGen(context), rhs->codeGen(context), "");
         case EQ_OP:
-            if (lhs->isConstant && rhs->isConstant) {
-                isConstant = true;
-
-                if (lhs->const_value == rhs->const_value) {
-                    const_value = 1;
-                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 1, true);
-                } else {
-                    const_value = 0;
-                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 0, true);
-
-                }
-            }
+//            if (lhs->isConstant && rhs->isConstant && context.optimization_phase) {
+//                isConstant = true;
+//
+//                if (lhs->const_value == rhs->const_value) {
+//                    const_value = 1;
+//                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 1, true);
+//                } else {
+//                    const_value = 0;
+//                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 0, true);
+//
+//                }
+//            }
             // return ConstantInt::get(Type::getInt32Ty(llvmContext), value, true);
             return builder.CreateICmpEQ(lhs->codeGen(context), rhs->codeGen(context), "");
         case LE_OP:
-            if (lhs->isConstant && rhs->isConstant) {
-                isConstant = true;
-
-                if (lhs->const_value <= rhs->const_value) {
-                    const_value = 1;
-                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 1, true);
-                } else {
-                    const_value = 0;
-                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 0, true);
-
-                }
-            }
+//            if (lhs->isConstant && rhs->isConstant && context.optimization_phase) {
+//                isConstant = true;
+//
+//                if (lhs->const_value <= rhs->const_value) {
+//                    const_value = 1;
+//                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 1, true);
+//                } else {
+//                    const_value = 0;
+//                    return ConstantInt::get(Type::getInt1Ty(llvmContext), 0, true);
+//
+//                }
+//            }
             return builder.CreateICmpSLE(lhs->codeGen(context), rhs->codeGen(context), "");
         case GE_OP:
             return builder.CreateICmpSGE(lhs->codeGen(context), rhs->codeGen(context), "");
@@ -761,32 +814,31 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     math:
     if (debug)
         cout << "Creating instruction: " << op << endl;
-    if (lhs->isConstant && rhs->isConstant) {
-        int val;
-        switch (op) {
-            case '+':
-                val = lhs->const_value + rhs->const_value;
-                break;
-            case '-':
-                val = lhs->const_value - rhs->const_value;
-                break;
-            case '*':
-                val = lhs->const_value * rhs->const_value;
-                break;
-            default:
-                goto no_const;
-        }
-        isConstant = true;
-        const_value = val;
-        IntNode *intNode = new IntNode(val);
-        return intNode->codeGen(context);
-    }
+//    if (lhs->isConstant && rhs->isConstant && context.optimization_phase) {
+//        int val;
+//        switch (op) {
+//            case '+':
+//                val = lhs->const_value + rhs->const_value;
+//                break;
+//            case '-':
+//                val = lhs->const_value - rhs->const_value;
+//                break;
+//            case '*':
+//                val = lhs->const_value * rhs->const_value;
+//                break;
+//            default:
+//                goto no_const;
+//        }
+//        isConstant = true;
+//        const_value = val;
+//        IntNode *intNode = new IntNode(val);
+//        return intNode->codeGen(context);
+//    }
 
     no_const:
 
     Value *ret = BinaryOperator::Create(instr, lhs->codeGen(context),
                                         rhs->codeGen(context), "", context.currentBlock());
-    if (debug)
         cout << "Inst Created" << endl;
     return ret;
 }

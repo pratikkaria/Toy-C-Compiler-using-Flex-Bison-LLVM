@@ -20,18 +20,21 @@ typedef vector<StmtNode *> StatementList;
 typedef vector<ExprNode *> ExpressionList;
 typedef vector<VariableDeclaration *> VariableList;
 
+
 class ASTNode {
 public:
     bool debug = false;
+
     bool isConstant = false;
-    int const_value;
-    bool isUsed = false;
+
+//    int const_value;
+//    bool isUsed = false;
     virtual Value *codeGen(CodeGenContext &context) { return NULL; }
 };
 
 class ExprNode : public ASTNode {
 public:
-    bool  isConstant = false;
+    bool isConstant = false;
 };
 
 class StmtNode : public ASTNode {
@@ -122,20 +125,6 @@ public:
     virtual Value *codeGen(CodeGenContext &context);
 };
 
-//class ExprBoolNode : public ExprNode {
-//public:
-//    ExprNode *lhs;
-//    ExprNode *rhs;
-//    int op;
-//
-//    ExprBoolNode(int _op, ExprNode *_lhs, ExprNode *_rhs) {
-//        op = _op;
-//        lhs = _lhs;
-//        rhs = _rhs;
-//    }
-//
-//    virtual Value *codeGen(CodeGenContext &context);
-//};
 
 class StringNode : public ExprNode {
 public:
@@ -177,6 +166,9 @@ public:
     int op;
     ExprNode *lhs;
     ExprNode *rhs;
+
+    bool isConstant = false;
+    int const_value;
 
     BinaryOperatorNode(int _op, ExprNode *_lhs, ExprNode *_rhs) {
         op = _op;
@@ -597,6 +589,7 @@ class WhileLoopNode : public StmtNode {
 public:
     BinaryOperatorNode *cond;
     BlockNode *block;
+
     WhileLoopNode(ExprNode *exprNode, BlockNode *_block) {
         cond = (BinaryOperatorNode *) exprNode;
         block = _block;
@@ -634,14 +627,14 @@ public:
     ForLoopNode(ExprNode *expr_dec, ExprNode *condition,
                 ExprNode *progress, BlockNode *block) : expr_dec(
             expr_dec), condition(condition), progress(progress), block(block) {
-        declaration=NULL;
+        declaration = NULL;
     }
 
     ForLoopNode(StmtNode *declaration, ExprNode *condition,
                 ExprNode *progress, BlockNode *block)
             : declaration(declaration), condition(condition),
               progress(progress), block(block) {
-        expr_dec=NULL;
+        expr_dec = NULL;
     }
 
     virtual Value *codeGen(CodeGenContext &context);

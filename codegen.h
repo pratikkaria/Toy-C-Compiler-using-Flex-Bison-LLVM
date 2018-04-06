@@ -32,14 +32,13 @@ public:
     BasicBlock *block;
     Value *returnValue;
     map<string, Value *> locals;
-    map<string, int> const_locals;
-    map<string, Value *> const_values;
+
     CodeGenBlock *parent;
 };
 
 class CodeGenContext {
     stack<CodeGenBlock *> blocks;
-    list<CodeGenBlock *> list_blocks;
+
 
     void pushBlock(BasicBlock *block, CodeGenBlock *_parent) {
         blocks.push(new CodeGenBlock());
@@ -50,16 +49,25 @@ class CodeGenContext {
 //        list_blocks.push_front(blocks.top());
     }
 
+    map<string, bool> variable_used;
+    map<string, bool> m_const_locals;
+    map<string, Value *> m_const_values;
+
 public:
-    map<string, bool > variable_used;
+
+
+    bool optimization_phase = false;
+
 
     Module *module;
     CodeGenContext() { module = new Module("main", llvmContext); }
     void generateCode(BlockNode &rootNode);
 
     map<std::string, Value *> &locals() { return blocks.top()->locals; }
-    map<std::string, Value *> &const_values() { return blocks.top()->const_values; }
-    map<std::string, int > &const_locals() { return blocks.top()->const_locals; }
+
+    map<std::string, Value *> &const_values() { return m_const_values; }
+
+    map<std::string, bool> &const_locals() { return m_const_locals; }
     map<std::string, bool > &variable_use() { return variable_used; }
 
     CodeGenBlock *currentCgenBlock() {
