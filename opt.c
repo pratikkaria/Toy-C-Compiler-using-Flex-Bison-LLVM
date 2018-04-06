@@ -18,23 +18,23 @@ int main() {
 
     
     // // this will be generated
-    // int d = 0;
-    // while (d <= 10) {
-    //     printf("%d\n", d);
-    //     d++;
-    // }
+    int d = 0;
+    while (d <= 10) {
+        printf("%d\n", d);
+        d++;
+    }
 
-    // // this will not be generated
-    // int d = 10;
-    // if (d == 20) {
-    //     printf("%d\n", d);
-    // }
+    // this will not be generated
+    int e = 10;
+    if (e == 20) {
+        printf("%d\n", e);
+    }
 
-    // // this will be generated with no compare statemetn
-    // int e = 10;
-    // if (e == 10) {
-    //     printf("%d\n", e);
-    // }
+    // this will be generated with no compare statemetn
+    int e = 10;
+    if (e == 10) {
+        printf("%d\n", e);
+    }
 
 
     return 0;
