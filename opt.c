@@ -2,9 +2,9 @@ extern int printf(char const *format, ...);
 
 int main() {
 
-    // int s1 = 10;
-    // int s2 = s1 + 10; // this will directly have 20, we need to use it, else it will not be generated
-    // printf("%d\n", s2);
+    int s1 = 10;
+    int s2 = s1 + 10; // this will directly have 20, we need to use it, else it will not be generated
+    printf("%d\n", s2);
 
     // // a code will not be generated
     // int a = 10;
@@ -17,15 +17,15 @@ int main() {
     //     b++;
     // }
 
-    int d = 0;
+    // int d = 0;
 
-    int c = 0;
-    // this will be generated
-    // and as c is constant, there will b	e no compare statement
-    while (d <= 10) {
-        printf("%d\n", d);
-        d++;
-    }
+    // int c = 0;
+    // // this will be generated
+    // // and as c is constant, there will b	e no compare statement
+    // while (d <= 10) {
+    //     printf("%d\n", d);
+    //     d++;
+    // }
 
     // // this will not be generated
     // int d = 10;
