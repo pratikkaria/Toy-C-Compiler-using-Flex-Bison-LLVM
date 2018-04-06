@@ -18,6 +18,8 @@
 #include <llvm/ExecutionEngine/GenericValue.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <list>
+
 using namespace llvm;
 using namespace std;
 
@@ -37,12 +39,15 @@ public:
 
 class CodeGenContext {
     stack<CodeGenBlock *> blocks;
+    list<CodeGenBlock *> list_blocks;
 
     void pushBlock(BasicBlock *block, CodeGenBlock *_parent) {
         blocks.push(new CodeGenBlock());
         blocks.top()->returnValue = NULL;
         blocks.top()->block = block;
         blocks.top()->parent = _parent;
+
+//        list_blocks.push_front(blocks.top());
     }
 
 public:
@@ -76,7 +81,6 @@ public:
     }
 
     void pushBlock(BasicBlock *block) {
-        cout<<"PUSHING: "<<getSize()<< endl;
         if (getSize() == 0) {
             blocks.push(new CodeGenBlock());
             blocks.top()->returnValue = NULL;

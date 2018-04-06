@@ -41,7 +41,7 @@ class LongNode : public ExprNode {
 public:
     long value;
 
-    LongNode(long _value) : value(_value) { cout << "LongNode: " << value << endl; }
+    LongNode(long _value) : value(_value) {}
 
     LongNode(int uop, ExprNode *exprNode) {
         value = ((LongNode *) exprNode)->value;
@@ -69,10 +69,9 @@ class IntNode : public ExprNode {
 public:
     int value;
 
-    IntNode(int value) : value(value) { cout << "INTNODE: " << value << endl; }
+    IntNode(int value) : value(value) {}
 
     IntNode(int uop, ExprNode *exprNode) {
-        cout << "INTNODE\n";
         value = ((IntNode *) exprNode)->value;
         switch (uop) {
             case '-':
@@ -109,7 +108,6 @@ public:
     bool value = false;
 
     BoolNode(string &name) {
-        cout << "Boolean Node: " << name << endl;
         if (name.compare("true") == 0) {
             value = true;
         } else {
@@ -203,10 +201,12 @@ public:
     UnaryOperatorNode(ExprNode &lhs, int op, bool _onleft = false) :
             lhs(lhs), op(op) {
         onleft = _onleft;
-        cout << "++++++++++" << endl;
-        cout << "UO: 1: " << op << endl;
-        cout << "lhs: " << &lhs << endl;
-        cout << "-----------" << endl;
+        if (debug) {
+            cout << "++++++++++" << endl;
+            cout << "UO: 1: " << op << endl;
+            cout << "lhs: " << &lhs << endl;
+            cout << "-----------" << endl;
+        }
     }
 
     virtual Value *codeGen(CodeGenContext &context);
@@ -216,7 +216,7 @@ class BlockNode : public ExprNode {
 public:
     StatementList statements;
 
-    BlockNode() { cout << "Creating a New Block" << endl; }
+    BlockNode() {}
 
     virtual Value *codeGen(CodeGenContext &context);
 };
@@ -440,9 +440,9 @@ public:
     VariableDeclaration(QualStorageTypeNode &storageType, ExprNode &assig) :
             storageType(&storageType),
             id(&((AssignmentNode *) &assig)->getId()) {
-        if(assig.isConstant){
-            cout<<"======> Assignment is constant"<<endl;
-        }
+//        if(assig.isConstant){
+//            cout<<"======> Assignment is constant"<<endl;
+//        }
 
         assignmentExpr = ((AssignmentNode *) &assig)->assignmentExpr;
         isPtr = ((AssignmentNode *) &assig)->isPtr;
@@ -598,8 +598,6 @@ public:
     BinaryOperatorNode *cond;
     BlockNode *block;
     WhileLoopNode(ExprNode *exprNode, BlockNode *_block) {
-        cout << "WHile Node 1" << endl;
-        cout << typeid(*exprNode).name() << endl;
         cond = (BinaryOperatorNode *) exprNode;
         block = _block;
     }

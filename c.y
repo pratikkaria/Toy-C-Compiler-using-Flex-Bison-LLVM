@@ -158,10 +158,9 @@ constant
 		}else{
 			$$ = new CharNode(($1->c_str())[1]);
 		}
-			cout<<"Detected as I__CONSTANT\n";
 	 }
-	| F_CONSTANT	{ $$ = new DoubleNode(atof($1->c_str())); delete $1;cout<<"Detected as IF__CONSTANT\n";$$->isConstant = true;  }
-	| B_CONSTANT  { $$ = new BoolNode(*$1); delete $1;cout<<"Detected as B__CONSTANT\n" ;$$->isConstant = true; }
+	| F_CONSTANT	{ $$ = new DoubleNode(atof($1->c_str())); delete $1;$$->isConstant = true;  }
+	| B_CONSTANT  { $$ = new BoolNode(*$1); delete $1;$$->isConstant = true; }
 	| ENUMERATION_CONSTANT
 	;
 
@@ -197,41 +196,41 @@ declarator
 // Returns storage type
 declaration_specifiers
 	: storage_class_specifier declaration_specifiers {
-		cout<<"----dec_spec 1\n";
+
 		$$ = new QualStorageTypeNode(NULL, $1, $2);
 
 	}
 	| storage_class_specifier {
-cout<<"----dec_spec 2\n";
+
 		$$ = new QualStorageTypeNode();
 		$$->setStorage($1);
 	}
 	| type_specifier declaration_specifiers {
-cout<<"----dec_spec 3\n";
+
 		/* $$ = new QualStorageTypeNode($<var_stor>2); */
 		$2->setType($1);
 		$$ = $2;
 }
 	| type_specifier {
-cout<<"----dec_spec 4 (type_specifier)\n";
+
 		 $$ = new QualStorageTypeNode();
 		 $$->setType($1);
 	 }
 	| type_qualifier declaration_specifiers {
-cout<<"----dec_spec 5\n";
+
 		$2->setQualifier($1);
 		$$ =  $2;}
 	| type_qualifier {
-cout<<"----dec_spec 6\n";
+
 		$$ = new QualStorageTypeNode();
 		$$->setQualifier($1);
 		}
 	| function_specifier declaration_specifiers {
-		cout<<"----dec_spec 7\n";
+
 	}
-	| function_specifier {cout<<"----dec_spec 8\n";}
-	| alignment_specifier declaration_specifiers {cout<<"----dec_spec 9\n";}
-	| alignment_specifier {cout<<"----dec_spec 10\n";}
+	| function_specifier {}
+	| alignment_specifier declaration_specifiers {}
+	| alignment_specifier {}
 	;
 
 declaration_list
@@ -243,7 +242,7 @@ declaration_list
 // AssignmentNode or IndentifierParam
 direct_declarator
 	: IDENTIFIER     {$$ = new AssignmentNode(new IdentiferNode(*$1)); delete $1;  }
-	| '(' declarator ')' {$$ = new AssignmentNode(new IdentiferNode(*$2));cout<<"----dir_dec: \"(declarator)\"(2)"<<endl;}
+	| '(' declarator ')' {$$ = new AssignmentNode(new IdentiferNode(*$2));}
 	| direct_declarator '[' ']' {}
 	| direct_declarator '[' '*' ']' {}
 	| direct_declarator '[' STATIC type_qualifier_list assignment_expression ']' {}
@@ -256,7 +255,6 @@ direct_declarator
 	| direct_declarator '(' parameter_type_list ')' {
 
 		 $3->setId($1);
-		 cout<<$3->arguments.front()->storageType->type->name<<endl;
 		 $$ = $3;
 	 }
 	| direct_declarator '(' ')' { $$ = new NIdentifierParam(*$1, true);}
@@ -327,23 +325,22 @@ enumerator	/* identifiers must be flagged as ENUMERATION_CONSTANT */
 
 
 external_declaration
-	: function_definition {cout<<"----ext_dec 1 (func_def)\n";}
-	| declaration {cout<<"----ext_dec 2 (dec)";}
+	: function_definition {}
+	| declaration {}
 	;
 
 
 expression_statement
 	: ';' {}
-	| expression ';' {cout<<"----exp_stmt: expression ;"<<endl;}
+	| expression ';'
 	;
 
 
 function_definition
-	: declaration_specifiers declarator declaration_list compound_statement {cout<<"--func_def 1\n";}
+	: declaration_specifiers declarator declaration_list compound_statement {}
 	| declaration_specifiers declarator compound_statement {
-		cout<<"--func_def 2(dec_spec declarator compound_statement)\n";
+
 		// TODO this can be a struct also
-		cout<<"Name: "<<$1->type->name<<endl;
 		$$ = new FunctionDefinitionNode(*$1, *$2, *$3);}
 	;
 
@@ -374,14 +371,14 @@ identifier_list
 
 //expression
 initializer
-	: '{' initializer_list '}' {cout<<"----initializer 1"<<endl;}
-	| '{' initializer_list ',' '}' {cout<<"----initializer 2"<<endl;}
-	| assignment_expression	{cout<<"----initializer 3"<<endl;}
+	: '{' initializer_list '}' {}
+	| '{' initializer_list ',' '}' {}
+	| assignment_expression	{}
     ;
 
 initializer_list
-	: designation initializer {cout<<"----init_list 1"<<endl;}
-	| initializer {cout<<"----init_list 2"<<endl;}
+	: designation initializer {}
+	| initializer {}
 	| initializer_list ',' designation initializer
 	| initializer_list ',' initializer
 	;
@@ -392,7 +389,6 @@ initializer_list
 //Returns AssignmentNode
 init_declarator
 	: declarator '=' initializer {
-		cout<<"----in_dec 1 (declarator = initializer)"<<endl;
 		$$ = new AssignmentNode(*$1, $3);
 		$$->setOp($2);
 	}
@@ -442,8 +438,6 @@ labeled_statement
 parameter_type_list
 	: parameter_list ',' ELLIPSIS {$$ = new NIdentifierParam(*$1);
 		$$->setEllipsis(true);
-
-		cout<<$$->arguments.front()->storageType->type->name<<endl;
 	}
 	| parameter_list { $$ = new NIdentifierParam(*$1); }
 	;
@@ -460,8 +454,6 @@ parameter_list
 parameter_declaration
 	: declaration_specifiers declarator {
 		 $$ = new VariableDeclaration(*$1, *$2);
-
-		cout<<$$->storageType->type->name<<endl;
 	}
 	| declaration_specifiers abstract_declarator {}
 	| declaration_specifiers {}
@@ -617,7 +609,7 @@ primary_expression
 	;
 
 postfix_expression
-	: primary_expression {if(debug)cout<<"---- postfix_expression 1"<<endl;}
+	: primary_expression
 	| postfix_expression '[' expression ']' { }
 	| postfix_expression '(' ')' {$$ = new FunctionCallNode(*$1);}
 	| postfix_expression '(' argument_expression_list ')' {$$ = new FunctionCallNode(*$1, *$3) ;}
@@ -634,7 +626,7 @@ postfix_expression
 	;
 
 unary_expression
-	: postfix_expression {cout<<"---- unary_expression 1"<<endl;}
+	: postfix_expression {}
 	| INC_OP unary_expression {
 		$$ = new UnaryOperatorNode(*$2, $1, true);
 		}
@@ -649,9 +641,9 @@ unary_expression
 	 }else if(dynamic_cast<LongNode *>($2)){
 		 $$ = new LongNode($1, $2) ;
 	 }else{
-		 cout<<"ERRROR Here in parser\n";
+
 	 }
-		 cout<<"Single Unary\n";
+
 	 }
 	| SIZEOF unary_expression {}
 	| SIZEOF '(' type_name ')' {}
@@ -664,7 +656,7 @@ cast_expression
 	;
 
 multiplicative_expression
-	: cast_expression {cout<<"---- mult_expression 1"<<endl;}
+	: cast_expression {}
 	| multiplicative_expression '*' cast_expression {$$ = new BinaryOperatorNode(*$1, $2, *$3);}
 	| multiplicative_expression '/' cast_expression {$$ = new BinaryOperatorNode(*$1, $2, *$3);}
 	| multiplicative_expression '%' cast_expression {$$ = new BinaryOperatorNode(*$1, $2, *$3);}
@@ -728,9 +720,9 @@ conditional_expression
 	;
 
 assignment_expression
-	: conditional_expression {cout<<"---- assignment_expression 1"<<endl;}
+	: conditional_expression {}
 	| unary_expression assignment_operator assignment_expression {
-		cout<<"---- assignment_expression 2"<<endl;
+
 		$$ = new AssignmentNode(*$1, $3);
 		((AssignmentNode *)$$)->setOp($2);
 	}
