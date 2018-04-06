@@ -15,10 +15,12 @@ void CodeGenContext::generateCode(BlockNode &rootNode) {
 
 //    secondpass = true;
 //    optimization_phase = true;
-    int pass = 2;
+    int pass = 1;
     while (pass) {
         cout << "##################SECOND PASS#################" << endl;
         module = new Module("main", llvmContext);
+        cout << "@@@@@@@@@@@@ RESETTING @@@@@@@@@@@@@@@" << endl;
+        variable_use().clear();
         rootNode.codeGen(*this);
         pass--;
     }
@@ -27,7 +29,7 @@ void CodeGenContext::generateCode(BlockNode &rootNode) {
     optimization_phase = true;
     module = new Module("main", llvmContext);
     rootNode.codeGen(*this);
-
+//
     module->dump();
 }
 
@@ -75,7 +77,6 @@ static int findInConstant(CodeGenContext &context, ASTNode *node) {
 
 
 static bool isThisConstant(CodeGenContext &context, string name) {
-    cout << "+++++++++++" << name << endl;
     if (context.const_locals().find(name) != context.const_locals().end()) {
         return context.const_locals()[name];
     }
@@ -99,6 +100,7 @@ static bool isThisConstant(CodeGenContext &context, ASTNode *node) {
 
 
 static bool isThisVariableUsed(CodeGenContext &context, string name) {
+    cout << "Looking for uysage of: " << name << endl;
     if (context.variable_use().find(name) != context.variable_use().end()) {
         return true;
     }
@@ -143,7 +145,7 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
 
 
     if (!secondpass) {
-        context.variable_use().clear();
+
         for (it = statements.begin(); it != statements.end(); it++) {
             cout << "\nGenerating code for " << typeid(**it).name() << endl;
             last = (**it).codeGen(context);
@@ -162,7 +164,7 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
                 cout << endl;
             }
         }
-        cout << "***************" << endl;
+        cout << "*****%%%%%^^^^^^^&&&&&&&&&&********" << endl;
     } else {
 
 
@@ -391,8 +393,8 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
         }
         // checking for constant here
         if (isThisConstant(context, id)) {
-            cout << "++++THis is constant: " << id->name << " value is: " << context.const_int_values()[id->name]
-                 << endl;
+//            cout << "++++THis is constant: " << id->name << " value is: " << context.const_int_values()[id->name]
+//                 << endl;
             id->isConstant = true;
             id->const_value = context.const_int_values()[id->name];
 
@@ -402,7 +404,7 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
                 intNode->isConstant = true;
                 intNode->const_value = id->const_value;
                 assignmentExpr = intNode;
-//                return intNode->codeGen(context);
+//                intNode->codeGen(context);
 //                return alloc;
             } else {
                 return context.const_values()[id->name];
@@ -562,10 +564,10 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
     // THi is the normal assignment, example a =10;
     Value *assig_val = assignmentExpr->codeGen(context);
 
-    cout << "++++++++ type is: " << typeid(assignmentExpr).name() << " " << assignmentExpr->isConstant << endl;
+//    cout << "++++++++ type is: " << typeid(assignmentExpr).name() << " " << assignmentExpr->isConstant << endl;
     if (assignmentExpr->isConstant && !context.optimization_phase) {
         cout << "+++++Marking " << getId().name << " constant" << endl;
-        cout << "+++++value for " << getId().name << " is: " << assignmentExpr->const_value << endl;
+//        cout << "+++++value for " << getId().name << " is: " << assignmentExpr->const_value << endl;
         context.const_locals()[getId().name] = true;
         context.const_int_values()[getId().name] = assignmentExpr->const_value;
 
@@ -579,7 +581,7 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
     }
 
     if (assignmentExpr->isConstant && context.optimization_phase) {
-        cout << "+++++++Return the generated code" << endl;
+//        cout << "+++++++Return the generated code" << endl;
         return new StoreInst(context.const_values()[getId().name],
                              id_val, false, context.currentBlock());
     }
@@ -740,14 +742,14 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
         int lhs_val = findInConstant(context, lhs);
         lhs->isConstant = true;
         lhs->const_value = lhs_val;
-        cout << "+++++lhs is constant" << endl;
+//        cout << "+++++lhs is constant" << endl;
     }
 
     if (isThisConstant(context, rhs)) {
         int rhs_val = findInConstant(context, rhs);
         rhs->isConstant = true;
         rhs->const_value = rhs_val;
-        cout << "+++++rhs is constant" << endl;
+//        cout << "+++++rhs is constant" << endl;
 
     }
 
@@ -822,13 +824,13 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
         case LE_OP:
             if (isThisConstant(context, lhs) && isThisConstant(context, rhs) && context.optimization_phase) {
                 isConstant = true;
-                cout << "+++++Getting the values" << endl;
+//                cout << "+++++Getting the values" << endl;
                 int lval = findInConstant(context, lhs);
-                cout << "+++++Getting the values, lval done" << endl;
+//                cout << "+++++Getting the values, lval done" << endl;
                 int rval = findInConstant(context, rhs);
-                cout << "+++++Getting the values, rval done" << endl;
+//                cout << "+++++Getting the values, rval done" << endl;
 
-                cout << "+++++++Values: " << lval << " " << rval << endl;
+//                cout << "+++++++Values: " << lval << " " << rval << endl;
                 if (lval <= rval) {
                     const_value = 1;
                     return ConstantInt::get(Type::getInt1Ty(llvmContext), 1, true);
