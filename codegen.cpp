@@ -1,6 +1,7 @@
 #include "node.h"
 #include "codegen.h"
 #include "c.tab.hpp"
+#include <algorithm>
 #include <llvm/IR/Verifier.h>
 
 using namespace std;
@@ -15,21 +16,36 @@ void CodeGenContext::generateCode(BlockNode &rootNode) {
 
 //    secondpass = true;
 //    optimization_phase = true;
-    int pass = 1;
+    int pass = 3;
     while (pass) {
         cout << "##################SECOND PASS#################" << endl;
         module = new Module("main", llvmContext);
         cout << "@@@@@@@@@@@@ RESETTING @@@@@@@@@@@@@@@" << endl;
         variable_use().clear();
+        _function_called.clear();
         rootNode.codeGen(*this);
         pass--;
+
+        //save to old
+        cout << "+++++++Saving" << endl;
+        _function_called_backup.clear();
+        for (std::map<string, bool>::iterator it = _function_called.begin(); it != _function_called.end(); ++it) {
+            _function_called_backup[it->first] = it->second;
+        }
+        _function_called_backup["main"] = true;
+        cout << "Backup contains: " << endl;
+        for (std::map<string, bool>::iterator it = _function_called_backup.begin();
+             it != _function_called_backup.end(); ++it) {
+            cout << it->first << " " << it->second << endl;
+        }
+
+        def_func = false;
     }
 
     secondpass = true;
     optimization_phase = true;
     module = new Module("main", llvmContext);
     rootNode.codeGen(*this);
-//
     module->dump();
 }
 
@@ -75,6 +91,38 @@ static int findInConstant(CodeGenContext &context, ASTNode *node) {
     }
 }
 
+//static bool isFunctionCalledMemory(CodeGenContext &context, string name){
+//    cout<<"checking function call for: "<<name<<endl;
+//    if(!name.compare("main")){
+//        return true;
+//    }
+//    if (context.function_called().find(name) != context.function_called().end()) {
+//        return context.function_called()[name];
+//    }
+//    return true;
+//}
+
+//bool isFunctionCalledList(CodeGenContext &context, string name) {
+//    cout << "+++++++checking function call in list for: " << name << endl;
+//    for (std::list<string>::iterator it=context.function_call_list.begin();
+//         it != context.function_call_list.end(); ++it)
+//        if(!name.compare(*it)){
+//            return true;
+//        }
+//    return false;
+//}
+
+static bool isFunctionCalled(CodeGenContext &context, string name) {
+
+    cout << "checking function call for: " << name << endl;
+    if (!name.compare("main")) {
+        return true;
+    }
+    if (context._function_called_backup.find(name) != context._function_called_backup.end()) {
+        return context._function_called_backup[name];
+    }
+    return context.def_func;
+}
 
 static bool isThisConstant(CodeGenContext &context, string name) {
     if (context.const_locals().find(name) != context.const_locals().end()) {
@@ -97,7 +145,6 @@ static bool isThisConstant(CodeGenContext &context, ASTNode *node) {
     }
     return false;
 }
-
 
 static bool isThisVariableUsed(CodeGenContext &context, string name) {
     cout << "Looking for uysage of: " << name << endl;
@@ -146,10 +193,10 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
 
     if (!secondpass) {
 
-        for (it = statements.begin(); it != statements.end(); it++) {
-            cout << "\nGenerating code for " << typeid(**it).name() << endl;
-            last = (**it).codeGen(context);
-        }
+//        for (it = statements.begin(); it != statements.end(); it++) {
+//            cout << "\nGenerating code for " << typeid(**it).name() << endl;
+//            last = (**it).codeGen(context);
+//        }
 
         cout << "***************" << endl;
 
@@ -160,9 +207,18 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
                      << " used: " << isThisVariableUsed(context, ((VariableDeclaration *) (*it))->id->name)
                      << " isconstant: " << isThisConstant(context, ((VariableDeclaration *) (*it))->id->name)
                      << endl;
+            } else if (dynamic_cast<FunctionDefinitionNode *>(*it)) {
+                cout << ((FunctionDefinitionNode *) (*it))->id.name
+                     << " used: " << isFunctionCalled(context, ((FunctionDefinitionNode *) (*it))->id.name) << endl;
+                if (!isFunctionCalled(context, ((FunctionDefinitionNode *) (*it))->id.name)) {
+                    cout << "SKIPPING" << endl;
+                    continue;
+                }
             } else {
                 cout << endl;
             }
+            cout << "\nGenerating code for " << typeid(**it).name() << endl;
+            last = (**it).codeGen(context);
         }
         cout << "*****%%%%%^^^^^^^&&&&&&&&&&********" << endl;
     } else {
@@ -175,6 +231,14 @@ Value *BlockNode::codeGen(CodeGenContext &context) {
                     cout << ((VariableDeclaration *) (*it))->id->name
                          << " used: " << isThisVariableUsed(context, ((VariableDeclaration *) (*it))->id->name)
                          << " isconstant: " << ((VariableDeclaration *) (*it))->isConstant
+                         << endl;
+                    cout << "SKIPPING" << endl;
+                    continue;
+                }
+            } else if (dynamic_cast<FunctionDefinitionNode *>(*it)) {
+                if (!isFunctionCalled(context, ((FunctionDefinitionNode *) (*it))->id.name)) {
+                    cout << ((FunctionDefinitionNode *) (*it))->id.name
+                         << " used: " << isFunctionCalled(context, ((FunctionDefinitionNode *) (*it))->id.name)
                          << endl;
                     cout << "SKIPPING" << endl;
                     continue;
@@ -381,7 +445,6 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
     }
 
 
-
     if (!context.isBlocksEmpty()) {
         // Local
         AllocaInst *alloc = new AllocaInst(typeOf(*(storageType->type), isPtr), id->name.c_str(),
@@ -501,7 +564,13 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
     if (id_val == nullptr)
         return NULL;
     IRBuilder<> builder(context.currentBlock());
-    LoadInst *loadInst = builder.CreateLoad(id_val, "");
+
+    LoadInst *loadInst;
+    if (op != '=') {
+        cout << "+++++++++++Generating Load" << endl;
+        loadInst = builder.CreateLoad(id_val, "");
+    }
+
     Value *inci;
     switch (op) {
         case ADD_ASSIGN: {
@@ -555,10 +624,6 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
             inci = builder.CreateXor(loadInst, assignmentExpr->codeGen(context), "");
             builder.CreateStore(inci, id_val);
             return inci;
-//        case '=':
-//            goto normaalassig;
-//        default:
-//            cout<<"Assign: Not Supported: "<<op<<endl;
 
     }
     // THi is the normal assignment, example a =10;
@@ -585,7 +650,6 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
         return new StoreInst(context.const_values()[getId().name],
                              id_val, false, context.currentBlock());
     }
-
 
 
     isConstant = assignmentExpr->isConstant;
@@ -682,6 +746,8 @@ Value *IdentiferNode::codeGen(CodeGenContext &context) {
 
 Value *FunctionCallNode::codeGen(CodeGenContext &context) {
     cout << "Generating for Function Call for " << id.name << " args Size " << arguments.size() << endl;
+    context.function_called()[id.name] = true;
+
     Function *function = context.module->getFunction(id.name.c_str());
     if (function == NULL) {
         std::cerr << "no such function " << id.name << endl;
@@ -894,6 +960,7 @@ Value *FunctionDeclarationNode::codeGen(CodeGenContext &context) {
         cout << "==Type: " << storageType->type->name << endl;
         cout << "==isPtr: " << isPtr << endl;
     }
+
     vector < Type * > argTypes;
     VariableList::const_iterator it;
     for (it = arguments.begin(); it != arguments.end(); it++) {
@@ -917,6 +984,11 @@ Value *FunctionDefinitionNode::codeGen(CodeGenContext &context) {
         cout << "Name: " << id.name << endl;
         cout << "Type: " << storageType->type->name << endl;
     }
+
+//    if(context.def_func){
+//        context.function_call_list.push_back(id.name);
+//    }
+
     VariableList::const_iterator it;
     Function *function = context.module->getFunction(id.name.c_str());
     if (function == NULL) {

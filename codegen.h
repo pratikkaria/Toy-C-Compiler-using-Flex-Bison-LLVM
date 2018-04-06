@@ -55,6 +55,9 @@ class CodeGenContext {
 public:
     bool isthisloopblock = false;
     map<string, bool > variable_used;
+    map<string, bool> _function_called;
+    map<string, bool> _function_called_backup;
+    bool def_func = true;
 
     bool optimization_phase = false;
 
@@ -70,6 +73,8 @@ public:
 
     map<std::string, bool> &const_locals() { return m_const_locals; }
     map<std::string, bool > &variable_use() { return variable_used; }
+
+    map<std::string, bool> &function_called() { return _function_called; }
 
     CodeGenBlock *currentCgenBlock() {
         return blocks.top();
