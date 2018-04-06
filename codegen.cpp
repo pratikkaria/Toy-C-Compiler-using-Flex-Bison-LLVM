@@ -282,12 +282,14 @@ Value *IfNode::codeGen(CodeGenContext &context) {
     Function *function = context.currentBlock()->getParent();
     Value *condValue = cond->codeGen(context);
     if (cond->isConstant) {
-        if (debug)
+//        if (debug)
             cout << "in the IF block and this is constant" << endl;
         if (cond->const_value == 1) {
             Value *thenValue = truecond->codeGen(context);
         } else {
-            falsecond->codeGen(context);
+            if (falsecond != nullptr) {
+                falsecond->codeGen(context);
+            }
         }
 
         return NULL;
@@ -721,13 +723,15 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
 
             return builder.CreateICmpNE(lhs->codeGen(context), rhs->codeGen(context), "");
         case EQ_OP:
+            cout << "This is ==" << endl;
             if (lhs->isConstant && rhs->isConstant) {
                 isConstant = true;
-
                 if (lhs->const_value == rhs->const_value) {
+                    cout << "This is 1" << endl;
                     const_value = 1;
                     return ConstantInt::get(Type::getInt1Ty(llvmContext), 1, true);
                 } else {
+                    cout << "This is 0" << endl;
                     const_value = 0;
                     return ConstantInt::get(Type::getInt1Ty(llvmContext), 0, true);
 
