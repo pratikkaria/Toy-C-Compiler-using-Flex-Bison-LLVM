@@ -371,14 +371,13 @@ Value *IfNode::codeGen(CodeGenContext &context) {
 }
 
 Value *VariableDeclaration::codeGen(CodeGenContext &context) {
-    isUsed = true;
+//    isUsed = true;
     cout << "Creating code for Variable declaration: " << endl;
     if (debug) {
         cout << "Var: Type: " << storageType->type->name << endl;
         cout << "Var: Name: " << id->name << endl;
     }
 
-    //checking const
 
 
     if (!context.isBlocksEmpty()) {
@@ -390,16 +389,34 @@ Value *VariableDeclaration::codeGen(CodeGenContext &context) {
         } else {
             yyerror("Variable Already defined");
         }
-        if (isThisConstant(context, id->name)) {
-            return context.const_values()[id->name];
+        // checking for constant here
+        if (isThisConstant(context, id)) {
+            cout << "++++THis is constant: " << id->name << " value is: " << context.const_int_values()[id->name]
+                 << endl;
+            id->isConstant = true;
+            id->const_value = context.const_int_values()[id->name];
+
+            if (context.optimization_phase) {
+//                cout<<"++++++++Generating code"<<endl;
+                IntNode *intNode = new IntNode(id->const_value);
+                intNode->isConstant = true;
+                intNode->const_value = id->const_value;
+                assignmentExpr = intNode;
+//                return intNode->codeGen(context);
+//                return alloc;
+            } else {
+                return context.const_values()[id->name];
+            }
         }
+
         if (assignmentExpr != NULL) {
             AssignmentNode assn(*id, assignmentExpr, isPtr);
             Value *val = assn.codeGen(context);
             if (assignmentExpr->isConstant) {
 
-//                context.const_locals()[id->name] = assignmentExpr->const_value;
+//                context.const_locals()[id->name] = true;
 //                context.const_values()[id->name] = alloc;
+//                context.const_int_values()[id->name] = assignmentExpr->const_value;
 
                 isConstant = true;
                 const_value = assignmentExpr->const_value;
@@ -544,16 +561,30 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
     }
     // THi is the normal assignment, example a =10;
     Value *assig_val = assignmentExpr->codeGen(context);
+
     cout << "++++++++ type is: " << typeid(assignmentExpr).name() << " " << assignmentExpr->isConstant << endl;
     if (assignmentExpr->isConstant && !context.optimization_phase) {
         cout << "+++++Marking " << getId().name << " constant" << endl;
         cout << "+++++value for " << getId().name << " is: " << assignmentExpr->const_value << endl;
         context.const_locals()[getId().name] = true;
         context.const_int_values()[getId().name] = assignmentExpr->const_value;
-        context.const_values()[getId().name] = assig_val;
-    } else if (assignmentExpr->isConstant && !context.optimization_phase) {
+
+        IntNode *intNode = new IntNode(assignmentExpr->const_value);
+        intNode->isConstant = true;
+        intNode->const_value = assignmentExpr->const_value;
+
+        context.const_values()[getId().name] = intNode->codeGen(context);
+    } else if (!assignmentExpr->isConstant && !context.optimization_phase) {
         cout << "+++++Marking " << getId().name << " NOT constant in assig_node" << endl;
     }
+
+    if (assignmentExpr->isConstant && context.optimization_phase) {
+        cout << "+++++++Return the generated code" << endl;
+        return new StoreInst(context.const_values()[getId().name],
+                             id_val, false, context.currentBlock());
+    }
+
+
 
     isConstant = assignmentExpr->isConstant;
     const_value = assignmentExpr->const_value;

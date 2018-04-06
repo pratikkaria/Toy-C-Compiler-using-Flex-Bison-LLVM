@@ -2,13 +2,13 @@ extern int printf(char const *format, ...);
 
 int main() {
 
-    int s1 = 10;
-    int s2 = s1 + 10; // this will directly have 20, we need to use it, else it will not be generated
+    int s1 = 12;
+    int s2 = s1 + 11; // this will directly have 20, we need to use it, else it will not be generated
     printf("%d\n", s2);
 
     // // a code will not be generated
     // int a = 10;
-    // int b = 40;
+    // int b = a+40;
     // printf("%d\n", b);
 
     // // this will not be generated
