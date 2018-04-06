@@ -23,15 +23,15 @@ typedef vector<VariableDeclaration *> VariableList;
 class ASTNode {
 public:
     bool debug = false;
-    bool isConstant = false;
     int const_value;
     bool isUsed = false;
+    bool isConstant = false;
+
     virtual Value *codeGen(CodeGenContext &context) { return NULL; }
+
 };
 
 class ExprNode : public ASTNode {
-public:
-    bool  isConstant = false;
 };
 
 class StmtNode : public ASTNode {
