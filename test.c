@@ -138,7 +138,7 @@ printf("%s\n","Lab2 Demo:\n" );
 
 
 	printf("\n");
-	printf("Function Declaration and Definition %s\n");
+	printf("Function Declaration and Definition \n");
 	printf("Function call\n");
 	printf("bar(10,20) is: %d\n", bar(10,20));
 
