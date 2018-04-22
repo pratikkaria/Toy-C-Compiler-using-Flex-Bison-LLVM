@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
     assert(yyin);
 
     int ret_code = yyparse();
+    cout << "Return Code: " << ret_code << endl;
 
     CodeGenContext context; // populated during parsing
     context.generateCode(*programBlock);

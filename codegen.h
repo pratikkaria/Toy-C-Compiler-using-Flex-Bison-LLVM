@@ -18,8 +18,6 @@
 #include <llvm/ExecutionEngine/GenericValue.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include <list>
-
 using namespace llvm;
 using namespace std;
 
@@ -32,50 +30,25 @@ public:
     BasicBlock *block;
     Value *returnValue;
     map<string, Value *> locals;
-
     CodeGenBlock *parent;
 };
 
 class CodeGenContext {
     stack<CodeGenBlock *> blocks;
-    list<CodeGenBlock *> list_blocks;
-
     void pushBlock(BasicBlock *block, CodeGenBlock *_parent) {
         blocks.push(new CodeGenBlock());
         blocks.top()->returnValue = NULL;
         blocks.top()->block = block;
         blocks.top()->parent = _parent;
-
-//        list_blocks.push_front(blocks.top());
     }
 
-    map<string, bool> m_const_locals;
-    map<string, Value *> m_const_values;
-    map<string, int> m_const_int_values;
 public:
-    bool isthisloopblock = false;
-    map<string, bool > variable_used;
-    map<string, bool> _function_called;
-    map<string, bool> _function_called_backup;
-    bool def_func = true;
-
-    bool optimization_phase = false;
 
     Module *module;
     CodeGenContext() { module = new Module("main", llvmContext); }
     void generateCode(BlockNode &rootNode);
 
     map<std::string, Value *> &locals() { return blocks.top()->locals; }
-
-    map<std::string, Value *> &const_values() { return m_const_values; }
-
-    map<std::string, int> &const_int_values() { return m_const_int_values; }
-
-    map<std::string, bool> &const_locals() { return m_const_locals; }
-    map<std::string, bool > &variable_use() { return variable_used; }
-
-    map<std::string, bool> &function_called() { return _function_called; }
-
     CodeGenBlock *currentCgenBlock() {
         return blocks.top();
     }
@@ -87,7 +60,6 @@ public:
         return blocks.top()->block;
     }
     bool isBlocksEmpty() {
-        // this means these are global declaration
         return (blocks.size() == 0);
     }
     int getSize() {
@@ -95,6 +67,7 @@ public:
     }
 
     void pushBlock(BasicBlock *block) {
+        cout<<"PUSHING: "<<getSize()<< endl;
         if (getSize() == 0) {
             blocks.push(new CodeGenBlock());
             blocks.top()->returnValue = NULL;

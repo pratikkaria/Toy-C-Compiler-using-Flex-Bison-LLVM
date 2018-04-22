@@ -22,13 +22,9 @@ typedef vector<VariableDeclaration *> VariableList;
 
 class ASTNode {
 public:
-    bool debug = false;
-    int const_value;
-    bool isUsed = false;
-    bool isConstant = false;
+    bool debug = true;
 
     virtual Value *codeGen(CodeGenContext &context) { return NULL; }
-
 };
 
 class ExprNode : public ASTNode {
@@ -41,7 +37,7 @@ class LongNode : public ExprNode {
 public:
     long value;
 
-    LongNode(long _value) : value(_value) {}
+    LongNode(long _value) : value(_value) { cout << "LongNode: " << value << endl; }
 
     LongNode(int uop, ExprNode *exprNode) {
         value = ((LongNode *) exprNode)->value;
@@ -69,9 +65,10 @@ class IntNode : public ExprNode {
 public:
     int value;
 
-    IntNode(int value) : value(value) {}
+    IntNode(int value) : value(value) { cout << "INTNODE: " << value << endl; }
 
     IntNode(int uop, ExprNode *exprNode) {
+        cout << "INTNODE\n";
         value = ((IntNode *) exprNode)->value;
         switch (uop) {
             case '-':
@@ -108,6 +105,7 @@ public:
     bool value = false;
 
     BoolNode(string &name) {
+        cout << "Boolean Node: " << name << endl;
         if (name.compare("true") == 0) {
             value = true;
         } else {
@@ -122,20 +120,20 @@ public:
     virtual Value *codeGen(CodeGenContext &context);
 };
 
-//class ExprBoolNode : public ExprNode {
-//public:
-//    ExprNode *lhs;
-//    ExprNode *rhs;
-//    int op;
-//
-//    ExprBoolNode(int _op, ExprNode *_lhs, ExprNode *_rhs) {
-//        op = _op;
-//        lhs = _lhs;
-//        rhs = _rhs;
-//    }
-//
-//    virtual Value *codeGen(CodeGenContext &context);
-//};
+class ExprBoolNode : public ExprNode {
+public:
+    ExprNode *lhs;
+    ExprNode *rhs;
+    int op;
+
+    ExprBoolNode(int _op, ExprNode *_lhs, ExprNode *_rhs) {
+        op = _op;
+        lhs = _lhs;
+        rhs = _rhs;
+    }
+
+    virtual Value *codeGen(CodeGenContext &context);
+};
 
 class StringNode : public ExprNode {
 public:
@@ -175,19 +173,25 @@ public:
 class BinaryOperatorNode : public ExprNode {
 public:
     int op;
-    ExprNode *lhs;
-    ExprNode *rhs;
-
-    BinaryOperatorNode(int _op, ExprNode *_lhs, ExprNode *_rhs) {
-        op = _op;
-        lhs = _lhs;
-        rhs = _rhs;
-    }
+    ExprNode &lhs;
+    ExprNode &rhs;
 
     BinaryOperatorNode(ExprNode &lhs, int op, ExprNode &rhs) :
-            lhs(&lhs), rhs(&rhs), op(op) {
+            lhs(lhs), rhs(rhs), op(op) {
+        cout << "++++++++++" << endl;
+        cout << "BO: " << op << endl;
+        cout << "lhs: " << &lhs << endl;
+        cout << "rhs: " << &rhs << endl;
+        cout << "-----------" << endl;
     }
-
+//    BinaryOperatorNode(IdentiferNode &lhs, char op, ExprNode &rhs) :
+//            lhs(lhs), rhs(rhs), op(op) {
+//        cout << "++++++++++" << endl;
+//        cout << "BO: 1: " << op << endl;
+//        cout << "lhs: " << &lhs << endl;
+//        cout << "rhs: " << &rhs << endl;
+//        cout << "-----------" << endl;
+//    }
 
     virtual Value *codeGen(CodeGenContext &context);
 };
@@ -201,12 +205,10 @@ public:
     UnaryOperatorNode(ExprNode &lhs, int op, bool _onleft = false) :
             lhs(lhs), op(op) {
         onleft = _onleft;
-        if (debug) {
-            cout << "++++++++++" << endl;
-            cout << "UO: 1: " << op << endl;
-            cout << "lhs: " << &lhs << endl;
-            cout << "-----------" << endl;
-        }
+        cout << "++++++++++" << endl;
+        cout << "UO: 1: " << op << endl;
+        cout << "lhs: " << &lhs << endl;
+        cout << "-----------" << endl;
     }
 
     virtual Value *codeGen(CodeGenContext &context);
@@ -216,7 +218,7 @@ class BlockNode : public ExprNode {
 public:
     StatementList statements;
 
-    BlockNode() {}
+    BlockNode() { cout << "Creating a New Block" << endl; }
 
     virtual Value *codeGen(CodeGenContext &context);
 };
@@ -259,6 +261,14 @@ public:
 
     void setOp(int op) {
         AssignmentNode::op = op;
+//        switch (op) {
+//            case ADD_ASSIGN:
+//                assignmentExpr = new BinaryOperatorNode(id, '+', id);
+//                break;
+//            case '=':
+//            default:
+//                cout << "Nothing to be done\n";
+//        }
     }
 
     IdentiferNode &getId() {
@@ -286,8 +296,8 @@ public:
     }
 
     //Required for parser files
-    AssignmentNode(ExprNode &idexpr, bool _isPtr = false) :
-            id(((AssignmentNode *) &idexpr)->id) {
+    AssignmentNode(ExprNode &expression, bool _isPtr = false) :
+            id(((AssignmentNode *) &expression)->id) {
         isPtr = _isPtr;
         assignmentExpr = NULL;
         if (debug) {
@@ -308,15 +318,11 @@ public:
     AssignmentNode(IdentiferNode &id, ExprNode *assignmentExpr, bool _isptr = false) :
             id(id), assignmentExpr(assignmentExpr) {
         isPtr = _isptr;
-        isConstant = assignmentExpr->isConstant;
-        id.isConstant = isConstant;
-
         if (debug) {
             cout << "+++++++++++++++++++++++++" << endl;
             cout << "VA 2 " << endl;
             cout << "Name: " << id.name << endl;
             cout << "IsPtr: " << isPtr << endl;
-            cout << "IsConstant: " << isConstant << endl;
             if (assignmentExpr)
                 cout << "Assig: " << assignmentExpr << "\n ";
             else
@@ -329,8 +335,7 @@ public:
     // Required for parser files
     AssignmentNode(ExprNode &expression, ExprNode *assignmentExpr) :
             id(((AssignmentNode *) &expression)->id), assignmentExpr(assignmentExpr) {
-        isConstant = assignmentExpr->isConstant;
-//        id.isConstant = isConstant;
+
         if (dynamic_cast<AssignmentNode *>(&expression)) {
             if (debug) {
                 cout << "Assingment Node" << endl;
@@ -352,7 +357,8 @@ public:
         if (debug) {
             cout << "+++++++++++++++++++++++++" << endl;
             cout << "VA 3 " << endl;
-            cout << "IsConstant: " << isConstant << endl;
+//            cout << "Name: "<<id.name << endl;
+//            cout << "IsPtr: "<<isPtr << endl;
             if (assignmentExpr)
                 cout << "Assig: " << assignmentExpr << "\n ";
             else
@@ -415,11 +421,11 @@ class VariableDeclaration : public StmtNode {
 public:
     bool isPtr = false;
     QualStorageTypeNode *storageType;
-    IdentiferNode *id;
+    IdentiferNode &id;
     ExprNode *assignmentExpr;
 
     VariableDeclaration(const ExprNode &type, IdentiferNode &id) :
-            id(&id), storageType(
+            id(id), storageType(
             new QualStorageTypeNode(NULL, NULL, (IdentiferNode *) &type)) {
         assignmentExpr = NULL;
         if (debug) {
@@ -429,7 +435,7 @@ public:
 
 
     VariableDeclaration(const IdentiferNode &type, IdentiferNode &id) :
-            id(&id), storageType(
+            id(id), storageType(
             new QualStorageTypeNode(NULL, NULL, (IdentiferNode *) &type)) {
         assignmentExpr = NULL;
         if (debug) {
@@ -439,10 +445,7 @@ public:
 
     VariableDeclaration(QualStorageTypeNode &storageType, ExprNode &assig) :
             storageType(&storageType),
-            id(&((AssignmentNode *) &assig)->getId()) {
-//        if(assig.isConstant){
-//            cout<<"======> Assignment is constant"<<endl;
-//        }
+            id(((AssignmentNode *) &assig)->getId()) {
 
         assignmentExpr = ((AssignmentNode *) &assig)->assignmentExpr;
         isPtr = ((AssignmentNode *) &assig)->isPtr;
@@ -459,7 +462,6 @@ public:
             }
         }
 
-
         if (debug) {
             cout << "+++++++++++++++++++++++++" << endl;
             cout << "VD 3 " << endl;
@@ -468,7 +470,7 @@ public:
             else
                 cout << "AssigExpr is NULL\n" << endl;
 
-            cout << "Name: " << id->name << endl;
+            cout << "Name: " << id.name << endl;
             cout << "isPtr: " << isPtr << endl;
             cout << "type: " << storageType.type->name << endl;
             cout << "qual: " << storageType.qualifier << endl;
@@ -478,12 +480,12 @@ public:
     }
 
     VariableDeclaration(QualStorageTypeNode &storageType, IdentiferNode &assig) :
-            id(&assig),
+            id(assig),
             storageType(&storageType) {
         if (debug) {
             cout << "VD 4" << endl;
             cout << (&assig)->name << endl;
-            cout << id->name << endl;
+            cout << id.name << endl;
             cout << "Debug OK" << endl;
         }
     }
@@ -528,7 +530,7 @@ public:
         isFunc = _isF;
         if (debug) {
             cout << "IP 2" << endl;
-            cout << "IP 2: " << _arguments.front()->id->name << endl;
+            cout << "IP 2: " << _arguments.front()->id.name << endl;
             cout << "IP 2: " << arguments.front()->storageType->type->name << endl;
             if (isFunc) {
                 cout << "THis is function" << endl;
@@ -564,7 +566,7 @@ class IfNode : public StmtNode {
 public:
     BlockNode *truecond;
     BlockNode *falsecond;
-    BinaryOperatorNode *cond;
+    ExprBoolNode *cond;
 
     IfNode(ExprNode *exprNode, BlockNode *true_blockNode, BlockNode *false_blockNode) {
         cout << "If Node 1" << endl;
@@ -572,12 +574,12 @@ public:
         if (dynamic_cast<IntNode *>(exprNode)) {
             IntNode *intNode = dynamic_cast<IntNode *>(exprNode);
             if (intNode->value > 0) {
-                cond = reinterpret_cast<BinaryOperatorNode *>(new BoolNode(true));
+                cond = reinterpret_cast<ExprBoolNode *>(new BoolNode(true));
             } else {
-                cond = reinterpret_cast<BinaryOperatorNode *>(new BoolNode(false));
+                cond = reinterpret_cast<ExprBoolNode *>(new BoolNode(false));
             }
         } else {
-            cond = (BinaryOperatorNode *) exprNode;
+            cond = (ExprBoolNode *) exprNode;
         }
         truecond = true_blockNode;
         falsecond = false_blockNode;
@@ -585,7 +587,7 @@ public:
 
     IfNode(ExprNode *exprNode, BlockNode *true_blockNode) {
         cout << "If Node 2" << endl;
-        cond = dynamic_cast<BinaryOperatorNode *>(exprNode);
+        cond = dynamic_cast<ExprBoolNode *>(exprNode);
         truecond = true_blockNode;
         falsecond = nullptr;
     }
@@ -595,10 +597,14 @@ public:
 
 class WhileLoopNode : public StmtNode {
 public:
-    BinaryOperatorNode *cond;
+    ExprBoolNode *cond;
     BlockNode *block;
+
+
     WhileLoopNode(ExprNode *exprNode, BlockNode *_block) {
-        cond = (BinaryOperatorNode *) exprNode;
+        cout << "WHile Node 1" << endl;
+        cout << typeid(*exprNode).name() << endl;
+        cond = (ExprBoolNode *) exprNode;
         block = _block;
     }
 
@@ -608,14 +614,14 @@ public:
 
 class DoWhileLoopNode : public StmtNode {
 public:
-    BinaryOperatorNode *cond;
+    ExprBoolNode *cond;
     BlockNode *block;
 
 
     DoWhileLoopNode(ExprNode *exprNode, BlockNode *_block) {
         cout << "WHile Node 1" << endl;
         cout << typeid(*exprNode).name() << endl;
-        cond = (BinaryOperatorNode *) exprNode;
+        cond = (ExprBoolNode *) exprNode;
         block = _block;
     }
 
