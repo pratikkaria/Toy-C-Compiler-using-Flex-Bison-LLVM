@@ -319,9 +319,7 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
         if (gvar) {
             cout << "It is global" << endl;
             if (!gvar->hasInitializer()) {
-                cout << "isptr: " << isPtr << endl;
                 cout << assignmentExpr << endl;
-                cout << "isptr: " << isPtr << endl;
                 if (!isPtr) {
                     gvar->setInitializer(dyn_cast<Constant>(assignmentExpr->codeGen(context)));
                 } else {
@@ -340,10 +338,6 @@ Value *AssignmentNode::codeGen(CodeGenContext &context) {
                 return gvar;
             } else {
                 cout << "It has been initialized" << endl;
-//                cout << id_val->getValueType() << endl;
-//                return new StoreInst(assignmentExpr->codeGen(context),
-//                                     id_val, false,
-//                                     context.currentBlock());
             }
         } else {
             std::cerr << "undeclared variable " << id.name << endl;
@@ -516,7 +510,9 @@ Value *FunctionCallNode::codeGen(CodeGenContext &context) {
 
 Value *UnaryOperatorNode::codeGen(CodeGenContext &context) {
     std::cout << "****Creating unary operation " << op << endl;
-
+    /**
+     * This only supports ++ and --
+     */
     switch (op) {
         case INC_OP: {
             cout << "INC_OP" << endl;
@@ -551,15 +547,12 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
     Instruction::BinaryOps instr;
     switch (op) {
         case '+':
-            cout << "This is Add" << endl;
             instr = Instruction::Add;
             goto math;
         case '-':
-            cout << "This is Sub" << endl;
             instr = Instruction::Sub;
             goto math;
         case '*':
-            cout << "This is Mul" << endl;
             instr = Instruction::Mul;
             goto math;
         case '/':
@@ -594,11 +587,8 @@ Value *BinaryOperatorNode::codeGen(CodeGenContext &context) {
             cerr << "BINARY OPERATOR NOT SUPPORTED" << endl;
     }
     math:
-    cout << "Creating instruction: " << op << endl;
-    Value *lval = lhs.codeGen(context);
-    cout << "lval done" << endl;
-    Value *rval = rhs.codeGen(context);
-    cout << "rval done" << endl;
+    if(debug)
+        cout << "Creating instruction: " << op << endl;
 
     Value *ret = BinaryOperator::Create(instr, lhs.codeGen(context),
                                         rhs.codeGen(context), "", context.currentBlock());
@@ -615,16 +605,23 @@ Value *FunctionDeclarationNode::codeGen(CodeGenContext &context) {
     }
     vector<Type *> argTypes;
     VariableList::const_iterator it;
+    /**
+     * Arguments is an array of the args passed during the function declaration.
+     */
     for (it = arguments.begin(); it != arguments.end(); it++) {
         argTypes.push_back(typeOf(*(**it).storageType->type, (**it).isPtr));
     }
     FunctionType *ftype = FunctionType::get(typeOf(*(storageType->type), isPtr),
                                             makeArrayRef(argTypes), hasEllipsis);
     GlobalValue::LinkageTypes lt;
+    /***
+     * This only supports extern hence either external and internal storage link
+     */
     if (storageType->storage)
         lt = GlobalValue::ExternalLinkage;
     else
         lt = GlobalValue::InternalLinkage;
+
     Function *function = Function::Create(ftype, lt, id.name.c_str(), context.module);
     function->setCallingConv(llvm::CallingConv::C);
     return function;
@@ -669,9 +666,6 @@ Value *FunctionDefinitionNode::codeGen(CodeGenContext &context) {
     block.codeGen(context);
     ReturnInst::Create(llvmContext, context.getCurrentReturnValue(), context.currentBlock());
     context.popBlock();
-
-//    verifyFunction(*function);
-
     return function;
 }
 

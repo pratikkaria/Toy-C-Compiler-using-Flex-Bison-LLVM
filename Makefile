@@ -1,4 +1,4 @@
-all: check
+all: build
 
 OBJS = c.tab.o  \
        codegen.o  \
@@ -33,3 +33,6 @@ test: cc test.c
 
 check: cc test.c
 	./cc test.c ;echo "To run the code with lli run \"make test\""
+
+build: cc
+

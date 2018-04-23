@@ -22,7 +22,7 @@ typedef vector<VariableDeclaration *> VariableList;
 
 class ASTNode {
 public:
-    bool debug = true;
+    bool debug = false;
 
     virtual Value *codeGen(CodeGenContext &context) { return NULL; }
 };
@@ -35,7 +35,7 @@ class StmtNode : public ASTNode {
 
 class LongNode : public ExprNode {
 public:
-    long value;
+        long value;
 
     LongNode(long _value) : value(_value) { cout << "LongNode: " << value << endl; }
 
@@ -65,10 +65,10 @@ class IntNode : public ExprNode {
 public:
     int value;
 
-    IntNode(int value) : value(value) { cout << "INTNODE: " << value << endl; }
+    IntNode(int value) : value(value) {}
 
     IntNode(int uop, ExprNode *exprNode) {
-        cout << "INTNODE\n";
+
         value = ((IntNode *) exprNode)->value;
         switch (uop) {
             case '-':
@@ -102,7 +102,7 @@ public:
 
 class BoolNode : public ExprNode {
 public:
-    bool value = false;
+        bool value = false;
 
     BoolNode(string &name) {
         cout << "Boolean Node: " << name << endl;
@@ -178,11 +178,13 @@ public:
 
     BinaryOperatorNode(ExprNode &lhs, int op, ExprNode &rhs) :
             lhs(lhs), rhs(rhs), op(op) {
-        cout << "++++++++++" << endl;
-        cout << "BO: " << op << endl;
-        cout << "lhs: " << &lhs << endl;
-        cout << "rhs: " << &rhs << endl;
-        cout << "-----------" << endl;
+        if (debug) {
+            cout << "++++++++++" << endl;
+            cout << "BO: " << op << endl;
+            cout << "lhs: " << &lhs << endl;
+            cout << "rhs: " << &rhs << endl;
+            cout << "-----------" << endl;
+        }
     }
 //    BinaryOperatorNode(IdentiferNode &lhs, char op, ExprNode &rhs) :
 //            lhs(lhs), rhs(rhs), op(op) {
@@ -250,7 +252,7 @@ public:
     }
 };
 
-class AssignmentNode : public CommonDeclarationNode {
+class AssignmentNode : public CommonDeclarationNode     {
     IdentiferNode *backup;
     IdentiferNode &id;
     bool isBackup = false;
@@ -261,14 +263,6 @@ public:
 
     void setOp(int op) {
         AssignmentNode::op = op;
-//        switch (op) {
-//            case ADD_ASSIGN:
-//                assignmentExpr = new BinaryOperatorNode(id, '+', id);
-//                break;
-//            case '=':
-//            default:
-//                cout << "Nothing to be done\n";
-//        }
     }
 
     IdentiferNode &getId() {
@@ -640,14 +634,14 @@ public:
     ForLoopNode(ExprNode *expr_dec, ExprNode *condition,
                 ExprNode *progress, BlockNode *block) : expr_dec(
             expr_dec), condition(condition), progress(progress), block(block) {
-        declaration=NULL;
+        declaration = NULL;
     }
 
     ForLoopNode(StmtNode *declaration, ExprNode *condition,
                 ExprNode *progress, BlockNode *block)
             : declaration(declaration), condition(condition),
               progress(progress), block(block) {
-        expr_dec=NULL;
+        expr_dec = NULL;
     }
 
     virtual Value *codeGen(CodeGenContext &context);

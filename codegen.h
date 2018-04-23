@@ -25,13 +25,13 @@ class BlockNode;
 
 static LLVMContext llvmContext;
 
-class CodeGenBlock {
-public:
-    BasicBlock *block;
-    Value *returnValue;
-    map<string, Value *> locals;
-    CodeGenBlock *parent;
-};
+    class CodeGenBlock {
+    public:
+        BasicBlock *block;
+        Value *returnValue;
+        map<string, Value *> locals;
+        CodeGenBlock *parent;
+    };
 
 class CodeGenContext {
     stack<CodeGenBlock *> blocks;
@@ -67,7 +67,6 @@ public:
     }
 
     void pushBlock(BasicBlock *block) {
-        cout<<"PUSHING: "<<getSize()<< endl;
         if (getSize() == 0) {
             blocks.push(new CodeGenBlock());
             blocks.top()->returnValue = NULL;
