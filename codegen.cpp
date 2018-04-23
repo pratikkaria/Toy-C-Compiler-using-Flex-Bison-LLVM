@@ -14,8 +14,6 @@ void CodeGenContext::generateCode(BlockNode &rootNode) {
     cout << "Generating code for ROOT..." << endl;
     rootNode.codeGen(*this);
 
-//    secondpass = true;
-//    optimization_phase = true;
     int pass = 3;
     while (pass) {
         cout << "##################SECOND PASS#################" << endl;
@@ -74,7 +72,7 @@ static Type *typeOf(const IdentiferNode &type, bool isPtr) {
     return Type::getVoidTy(llvmContext);
 }
 
-
+//--------- Optimization part
 static int findInConstant(CodeGenContext &context, string name) {
     if (context.const_locals().find(name) != context.const_locals().end()) {
         return context.const_locals()[name];
@@ -90,27 +88,6 @@ static int findInConstant(CodeGenContext &context, ASTNode *node) {
         return ((IntNode *) node)->value;
     }
 }
-
-//static bool isFunctionCalledMemory(CodeGenContext &context, string name){
-//    cout<<"checking function call for: "<<name<<endl;
-//    if(!name.compare("main")){
-//        return true;
-//    }
-//    if (context.function_called().find(name) != context.function_called().end()) {
-//        return context.function_called()[name];
-//    }
-//    return true;
-//}
-
-//bool isFunctionCalledList(CodeGenContext &context, string name) {
-//    cout << "+++++++checking function call in list for: " << name << endl;
-//    for (std::list<string>::iterator it=context.function_call_list.begin();
-//         it != context.function_call_list.end(); ++it)
-//        if(!name.compare(*it)){
-//            return true;
-//        }
-//    return false;
-//}
 
 static bool isFunctionCalled(CodeGenContext &context, string name) {
 
@@ -428,7 +405,6 @@ Value *IfNode::codeGen(CodeGenContext &context) {
         context.popBlock();
     }
 
-    // create PHI node
     function->getBasicBlockList().push_back(mergeBlock);
     context.pushBlock(mergeBlock);
 

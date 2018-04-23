@@ -54,6 +54,7 @@ class CodeGenContext {
     map<string, int> m_const_int_values;
 public:
     bool isthisloopblock = false;
+
     map<string, bool > variable_used;
     map<string, bool> _function_called;
     map<string, bool> _function_called_backup;
