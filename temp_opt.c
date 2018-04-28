@@ -1,10 +1,8 @@
 int main(){
-    int a =10+20;
-    a = 40;
-    int b = 30;
-    int c = b+a;
+    int a = 10;
+    int b = 20;
+    int c = a+b;
+    int d = a+b;    
 
-    int d = b+a;
-
-    return d;
+    return 0;
 }
