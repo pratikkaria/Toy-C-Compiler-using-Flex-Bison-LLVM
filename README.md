@@ -49,3 +49,9 @@ Global Common sub expression elimination.
  Note: LLVM by default folds the constant. Hence the code generated using the command *emit-llvm* will be optimised. Hence we need to generate the code using
  our own old code which does no such thing. Using this we can see that constants like 10+20 is folder to 30. However if a variable is constant and then it is assigned
  to some other variable after adding to some constant, then it is not able to figure out that it is constant. May be some different flag is required for this.
+
+##
+cmake  <path to root> -DBUILD_SHARED_LIBS:BOOL=on
+make -j8
+make sure ll file is there
+run ./check

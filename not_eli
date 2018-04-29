@@ -1,0 +1,76 @@
+WARNING: You're attempting to print out a bitcode file.
+This is inadvisable as it may cause display problems. If
+you REALLY want to taste LLVM bitcode first-hand, you
+can force output with the `-f' option.
+
+Allocating: 
+Allocating: la
+Allocating: lb
+Allocating: lc
+Allocating: ld
+Checking   store i32 0, i32* %1, align 4
+Valid Store inst
+Returning: 
+Checking   store i32 10, i32* %la, align 4
+Valid Store inst
+Returning: la
+Store to: la
+Checking   store i32 20, i32* %lb, align 4
+Valid Store inst
+Returning: lb
+Store to: lb
+
+---------
+
+---------
+Bin inst:   %4 = mul nsw i32 %3, 5
+Operand: lb
+Operand: i32 5
+THis is not store. save  %5 = add nsw i32 %2, %4
+Checking   store i32 %5, i32* %lc, align 4
+Valid Store inst
+Returning: lc
+Final Saving to: lc
+Adding a binary op
+This is a constant.i32 5
+Saving the expression in local
+
+---------
+Bin inst:   %5 = add nsw i32 %2, %4
+Some other inst (expecting Load):  %4 = mul nsw i32 %3, 5 
+
+---------
+Checking   store i32 %5, i32* %lc, align 4
+Valid Store inst
+Returning: lc
+Store to: lc
+
+---------
+
+---------
+Bin inst:   %8 = mul nsw i32 %7, 2
+Operand: lb
+Operand: i32 2
+THis is not store. save  %9 = add nsw i32 %6, %8
+Checking   store i32 %9, i32* %ld, align 4
+Valid Store inst
+Returning: ld
+Final Saving to: ld
+Adding a binary op
+This is a constant.i32 2
+Saving the expression in local
+
+---------
+Bin inst:   %9 = add nsw i32 %6, %8
+Some other inst (expecting Load):  %8 = mul nsw i32 %7, 2 
+
+---------
+Checking   store i32 %9, i32* %ld, align 4
+Valid Store inst
+Returning: ld
+Store to: ld
+
+---------
+
+---------
+New function: 

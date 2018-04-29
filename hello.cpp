@@ -26,14 +26,12 @@
 
 #include "model.h"
 #include "../../../include/llvm/IR/Instructions.h"
-// #include "../../../include/llvm/Support/raw_ostream.h"
-// #include "../../../include/llvm/IR/BasicBlock.h"
-// #include "../../../include/llvm/IR/Instruction.h"
-// #include "../../../include/llvm/IR/Use.h"
-// #include "../../../include/llvm/ADT/Statistic.h"
-// #include "../../../include/llvm/Pass.h"
-// #include "../../../include/llvm/PassSupport.h"
-// #include "../../../include/llvm/IR/Instructions.h"
+#include "../../../include/llvm/IR/GlobalVariable.h"
+#include "../../../include/llvm/IR/GlobalValue.h"
+#include "../../../include/llvm/IR/Module.h"
+#include "../../../include/llvm/Pass.h"
+#include "../../../include/llvm/Support/raw_ostream.h"
+
 
 using namespace llvm;
 
@@ -43,96 +41,249 @@ STATISTIC(HelloCounter,
 "Counts number of functions greeted");
 
 namespace {
-    // Hello - The first implementation, without getAnalysisUsage.
-    struct Hello : public FunctionPass {
-        static char ID; // Pass identification, replacement for typeid
-        Hello() : FunctionPass(ID) {}
+    struct ModulePassUtil : public ModulePass {
+        static char ID;
 
-        bool runOnFunction(Function &F) override {
-            ++HelloCounter;
-            errs() << "Hello: ";
-            errs().write_escaped(F.getName()) << '\n';
-            return false;
-        }
-    };
-}
+        Module *module;
 
-char Hello::ID = 0;
-static RegisterPass <Hello> X("hello", "Hello World Pass");
+        std::vector<Binary_OP *> global_binary_op_list;
+        std::vector<Binary_OP *> binary_op_list;
+        std::map<std::string, Value *> locals;
+        std::map<std::string, std::string> pre_locals;
 
-namespace {
+        ModulePassUtil() : ModulePass(ID) {}
 
-    std::vector<Binary_OP *> binary_op_list;
-    std::map<std::string, Value *> locals;
-
-    // Hello2 - The second implementation with getAnalysisUsage implemented.
-    struct Hello2 : public FunctionPass {
-        static char ID; // Pass identification, replacement for typeid
-        Hello2() : FunctionPass(ID) {}
-
+        // Utils
         Binary_OP *isBinaryOpPresent(Binary_OP *binary_op) {
             std::vector<Binary_OP *>::iterator it;
+
             for (it = binary_op_list.begin(); it != binary_op_list.end(); it++) {
                 if (((*it)->a == binary_op->a)
                     && ((*it)->b == binary_op->b)
                     && ((*it)->opcode == binary_op->opcode)) {
+                    errs()<<"Found in Local. "<<binary_op->a<<" "<<binary_op->b<<" "<<binary_op->opcode<<"\n";
+                    if((*it)->isvalid){
+                        return (*it);
+                    }else{
+                        errs()<<"This is invalid\n";
+                    }
+
+                }
+            }
+
+            // finding in global.
+            for (it = global_binary_op_list.begin(); it != global_binary_op_list.end(); it++) {
+                if (((*it)->a == binary_op->a)
+                    && ((*it)->b == binary_op->b)
+                    && ((*it)->opcode == binary_op->opcode)
+                       &&(*it)->isvalid) {
+                    errs()<<"Found in Global\n";
                     return (*it);
                 }
             }
+
+
             return nullptr;
         }
 
+        void invalidateExpr(std::string name) {
+            if (name.empty()) {
+                return;
+            }
+
+            int typeVal = findVar(name);
+
+
+            std::vector<Binary_OP *>::iterator it;
+
+            for (it = binary_op_list.begin(); it != binary_op_list.end(); it++) {
+                if (((*it)->a == name)
+                    || ((*it)->b == name)) {
+                    errs() << "Found in local and deleting: " << name << "\n";
+                    binary_op_list.erase(it);
+                    it--;
+                }
+            }
+
+            if(typeVal==2){
+                // do this for global also.
+                for (it = global_binary_op_list.begin(); it != global_binary_op_list.end(); it++) {
+                    if (((*it)->a == name)
+                        || ((*it)->b == name)) {
+                        errs() << "Found in global and deleting: " << name << "\n";
+                        global_binary_op_list.erase(it);
+                        it--;
+                    }
+                }
+            }
+            return;
+        }
+
+        void addBinaryOp(Binary_OP *binary_op){
+            errs()<<"Adding a binary op\n";
+            int reta = findVar(binary_op->a);
+            int retb = findVar(binary_op->b);
+
+            if(reta==2 || retb==2){
+                errs() << "Saving the expression in GLobal\n";
+                global_binary_op_list.push_back(binary_op);
+            }else{
+                errs() << "Saving the expression in local\n";
+                binary_op_list.push_back(binary_op);
+            }
+
+            pre_locals[binary_op->inst] = binary_op->val;
+
+        }
+
+        int findVar(std::string name) {
+            if(name.empty())
+                return 4;
+            // 0 for not found
+            // 1 for local
+            // 2 for global
+            // 3 for constant
+            // 4 for empty
+
+            std::size_t found = name.find(" ");
+            if (found!=std::string::npos){
+                errs()<<"This is a constant."<<name<<"\n";
+                return 4;
+            }
+
+            if (locals.find(name) != locals.end()) {
+                return 1;
+            }
+
+            GlobalVariable * gvar = module->getNamedGlobal(name);
+            GlobalValue *gval = module->getNamedValue(name);
+
+            if (gvar) {
+                return 2;
+            } else {
+                errs() << "**** Error Undeclared Variable: " << name << "\n";
+                return 0;
+            }
+
+        }
+
+        Binary_OP * findTargetVariable(Instruction *inst, BasicBlock *pb, BasicBlock::iterator &it2){
+            Binary_OP *binary_op = new Binary_OP();
+//            binary_op->isvalid = false;
+            Instruction * store_inst;
+//            errs()<<"Looking for users"<<*inst<<"\n";
+            for (User *U: inst->users()) {
+                if (store_inst = dyn_cast<Instruction>(U)) {
+                    if(store_inst->getOpcode()==Instruction::Store) {
+//                        errs() << "Looking for users" << *store_inst << "\n";
+                        std::string stor_val = processStoreInst(store_inst);
+                        if (!stor_val.empty()) {
+                            errs() << "Final Saving to: " << stor_val << "\n";
+                            binary_op->val = stor_val;
+                            binary_op->isvalid = true;
+                            return binary_op;
+                        } else {
+                            errs() << "No store operand found\n";
+                            // create a new variable and store the value there.
+                        }
+                    }else{
+                        errs()<<"THis is not store. save"<<*store_inst<<"\n";
+                        binary_op =  findTargetVariable(store_inst, pb, it2);
+                        binary_op->val="tmp_"+binary_op->val;
+
+                        // AllocaInst* pa = new AllocaInst(llvm::Type::getInt32Ty(*context), 0, binary_op->val);
+                        // StoreInst* sa = new StoreInst(store_inst, pa);
+                        // errs()<<"Alloc inst: "<<*pa<<"\n";
+                        // errs()<<"Store inst: "<<*sa<<"\n";
+
+                        // pb->getInstList().insert(it2, pa);
+                        // it2++;
+                        // pb->getInstList().insert(it2, sa);
+                        // it2++;
+                        
+                        
+                        
+//                        binary_op->isvalid = false;
+                        return binary_op;
+                    }
+                }else{
+                    errs()<<"This is not instructio. save\n";
+                }
+            }
+            return binary_op;
+        }
+
+        // Function from here
+
         std::string processLoadInst(Instruction *inst) {
-            // int total = 0;
-            // errs()<<"Processing Load Instruction: \n";
-            // errs()<<*inst<<"\n";
             std::string name = inst->getOperand(0)->getName();
-            // errs()<<"Load var: "<<name<<"\n";
             return name;
 
         }
 
-        void processAllocaInst(Instruction *inst) {
-            // errs()<<"This is Alloca. This is: "<<inst->getOpcode()<<"\n";
+        std::string processAllocaInst(Instruction *inst) {
             std::string var_name = inst->getName();
             if (!var_name.empty()) {
-                errs() << "Variable Name: " << var_name << "\n";
                 locals[var_name] = inst;
             }
-            // errs()<<"Type: "<<inst->getType()->isIntegerTy()<<"\n";
-            // errs()<<"Inst: "<<*i<<"\n\n";
+            return var_name;
         }
 
         std::string processStoreInst(Instruction *inst) {
-            errs() << "Store. Inst: " << *inst << "\n";
+            errs()<<"Checking "<<*inst<<"\n";
+            if(inst->getOpcode()!=Instruction::Store){
+                errs()<<"Return null\n";
+                return "";
+            }
+            errs()<<"Valid Store inst\n";
             std::string operand_name = inst->getOperand(1)->getName();
-            errs() << "Operand: " << operand_name << "\n";
+            errs()<<"Returning: "<<operand_name<<"\n";
             return operand_name;
-            //   for(Use &U : inst->operands()){
-            //   Value *v = U.get();
-            //   errs()<<*v<<"\n";
-            // }
-            // for (auto op = inst->op_begin(); op != inst->op_end(); op++) {
-            //     Value* v = op->get();
-            //     StringRef name = v->getName();
-            //     errs()<<"==>: "<<name<<"\n";
-            //   }
-
         }
 
-        void processAddInst(Instruction *inst, BasicBlock *pb, BasicBlock::iterator &it2, llvm::LLVMContext &context) {
-            // errs()<<"This is Add. This is: "<<inst->getOpcode()<<"\n";
+        void
+        processBinaryInst(Instruction *inst, BasicBlock *pb, BasicBlock::iterator &it2, llvm::LLVMContext &context) {
             std::vector<std::string> operand_list;
-            errs() << "Add inst: " << *inst << "\n";
+            std::string type_str;
+            llvm::raw_string_ostream rso(type_str);
+
+
+
+            errs() << "Bin inst: " << *inst << "\n";
+
             for (Use &U : inst->operands()) {
                 Value * v = U.get();
-                if (Instruction * Inst = dyn_cast<Instruction>(v)) {
-                    if (Inst->getOpcode() == Instruction::Load) {
-                        std::string operandname = processLoadInst(Inst);
-                        // if (!operandname.empty()) {
+                if (Instruction * load_inst = dyn_cast<Instruction>(v)) {
+                    if (load_inst->getOpcode() == Instruction::Load) {
+                        std::string operandname = processLoadInst(load_inst);
+//                        errs()<<"pushing: "<<operandname<<"\n";
                         operand_list.push_back(operandname);
-                        // }
+                    }else{
+                        errs()<<"Some other inst (expecting Load):"<<*load_inst<<" \n";
+                        errs()<<"This must have been calculated before.\n";
+                        load_inst->print(rso);
+                        if(pre_locals.find(rso.str())!=pre_locals.end()){
+                            errs()<<"FOUND store in "<<pre_locals[rso.str()]<<"\n";
+                            operand_list.push_back(pre_locals[rso.str()]);
+                        }else{
+                            errs()<<"NOT FOUND\n";
+                            return;
+                        }
+
+//                        return;
                     }
+                }else if(Constant * c = dyn_cast<Constant>(v)){
+
+                    std::string type_str;
+                    llvm::raw_string_ostream rso(type_str);
+                    c->print(rso);
+//                    errs()<<"constant: "<<rso.str()<<"\n";
+                    operand_list.push_back(rso.str());
+
+                }
+                else{
+//                    operand_list.push_back(v->getValueName());
+                    errs()<<"not a inst "<<v->getValueName()<<"\n   ";
                 }
             }
 
@@ -141,174 +292,179 @@ namespace {
                 errs() << "Operand: " << *it << "\n";
             }
 
+//            errs()<<"Creating Binary op object\n";
+
             Binary_OP *binary_op = new Binary_OP();
             binary_op->a = operand_list[0];
             binary_op->b = operand_list[1];
             binary_op->opcode = inst->getOpcode();
             binary_op->isvalid = true;
             binary_op->value = inst;
-            Instruction * store_inst;
-            for (User *U: inst->users()) {
-                if (store_inst = dyn_cast<Instruction>(U)) {
-                    std::string stor_val = processStoreInst(store_inst);
-                    binary_op->val = stor_val;
-                }
-            }
+
+                inst->print(rso);
+            binary_op->inst = rso.str();
+
+
+
+
+//            errs()<<"DONE Creating Binary op object\n";
+
+           Binary_OP *temp = findTargetVariable(inst, pb, it2);
+            binary_op->val = temp->val;
+            binary_op->isvalid = temp->isvalid;
+//            errs()<<"DONE Looking for users\n";
 
             Binary_OP *binary_op_check = isBinaryOpPresent(binary_op);
 
             if (binary_op_check != nullptr) {
-                errs() << "THIS IS ALREADY PRESENT and the value can be found in " << binary_op_check->val << "\n";
-                errs() << *inst << "\n";
-                Value * value = locals[binary_op_check->val];
-                Value * tmp;
+                errs() << "Eliminating\n";
+                int ret = findVar(binary_op_check->val);
+                errs()<<"ret is: "<<ret<<" for "<<binary_op_check->val<<"\n";
+                 if(ret==4){
+                    // this was a temp. We are dealing with something wierd here;
+                    // look into binary op for oprans match.
+                    errs()<<"Working on this one"<<"\n";
+                    errs()<<*inst<<"\n";
+                    errs()<<binary_op_check->a<<"\n";
+                    errs()<<binary_op_check->b<<"\n";
+                }
+                Value *value;
 
-                // for (Use &U : inst->operands()) {
-                //     Value * v = U.get();
-                //     if (Instruction * load_inst = dyn_cast<Instruction>(v)) {
-                //       errs()<<"Trying to remove: "<<*load_inst<<"\n";
-                //         if (load_inst->getOpcode() == Instruction::Load) {
-                //           errs()<<"Trying to remove: "<<*load_inst<<"\n";
-                //             ReplaceInstWithValue(load_inst->getParent()->getInstList(), it2, tmp);
-                //             it2--;
-                //         }else{
-                //           errs()<<"THIS IS NOT LOADTrying to remove: "<<*load_inst<<"\n";
-                //         }
-                //     }else{
-                //           errs()<<"THIS IS NOT Instruction"<<"\n";
-                //     }
-                // }
+                if(ret==1) {
+                    value = locals[binary_op_check->val];
+                }else if(ret ==2){
+                    value = module->getNamedValue(binary_op_check->val);
+                }else if(ret==4){
+                    errs()<<"trying to assign value: "<<*(binary_op_check->value)<<"\n";
+                    value = binary_op_check->value;
+                }else{
+                    goto savetheins;
+                }
 
-                // IRBuilder<> builder(context);
-                // LoadInst *loadInst = builder.CreateLoad(value, "ff");
-                // Value *inci;
-                // builder.CreateStore(inci, dyn_cast<Value>(binary_op_check->value));
-
-                // auto *newAlloc = new AllocaInst(llvm::Type::getInt32Ty(context), 0, "indexLoc");
 
                 LoadInst *newLoad = new LoadInst(value);
                 pb->getInstList().insert(it2, newLoad);
-                // it2++; // this is requried
-                // StoreInst * storeInst = new StoreInst(newLoad, locals[binary_op->val]);
-                // pb->getInstList().insert(it2, storeInst);
-
                 it2++;
+                errs()<<"new load inst: "<<*newLoad<<"\n";
 
-                // errs() << "New store inst\n";
-                // errs() << *storeInst << "\n";
-
-                // BasicBlock::iterator ii3(inst);
-                // ReplaceInstWithValue(pb->getInstList(), it2,
-                //      value);
-                // inst->replaceAllUsesWith(newLoad);
-                // errs() << *inst << "\n";
-
-                // ReplaceInstWithValue(inst->getParent()->getInstList(), it2, value);
-                // ReplaceInstWithInst(inst->getParent()->getInstList(), it2, newLoad);
-
-                // StoreInst *storeInst = new StoreInst(newLoad, locals[binary_op->val]);
-                // pb->getInstList().insert(it2, storeInst);
-                // it2++;
-                // inst->eraseFromParent();
-                // inst->removeFromParent();
-
-                // it2--;
-                // this has to be here as it cannot be before instruction using this.
-
-
+                errs()<<"Replacing users\n";
                 for (User *U: inst->users()) {
                     U->replaceUsesOfWith(inst, newLoad);
-                    // if (store_inst = dyn_cast<Instruction>(U)) {
-                    //     errs() << "Usage of inst:\n";
-                    //     errs() << *store_inst << "\n";
-                    //     // ReplaceInstWithValue(store_inst->getParent()->getInstList(), it2, tmp);
-                    //     // store_inst->eraseFromParent();
-                    //     // it2--;
-                    //     //
-                    // }
                 }
+                errs()<<"Replacing users DONE\n";
 
                 inst->replaceAllUsesWith(value);
-
-                // ReplaceInstWithValue(inst->getParent()->getInstList(), it2, tmp);
-                // ReplaceInstWithValue(inst->getParent()->getInstList(), it2, value);
-                
-                // errs()<<"Here: "<<dyn_cast<Instruction>(inst->getOperand(0))<<"\n";
+                errs()<<"Replacing inst done\n";
 
 
-
+                errs()<<"Removing operands\n";
                 for (Use &U : inst->operands()) {
                     Value * v = U.get();
+                    errs()<<*v<<"\n";
                     if (Instruction * load_inst = dyn_cast<Instruction>(v)) {
-                        errs() << "Trying to remove: " << *load_inst << "\n";
                         if (load_inst->getOpcode() == Instruction::Load) {
-                            errs() << "Trying to remove: " << *load_inst << "\n";
-                            // ReplaceInstWithValue(load_inst->getParent()->getInstList(), it2, tmp);
                             load_inst->eraseFromParent();
                             it2--;
-                        } else {
-                            errs() << "THIS IS NOT LOADTrying to remove: " << *load_inst << "\n";
+                        }else{
+                            errs()<<"not a load\n";
                         }
-                    } else {
-                        errs() << "THIS IS NOT Instruction" << "\n";
+                    }else if(Constant *c  = dyn_cast<Constant>(v)){
+                        errs()<<"Constant\n";
+//                        v->eraseFromParent();
+                        it2--;
                     }
                 }
+                errs()<<"Replacing operands Done\n";
 
                 inst->eraseFromParent();
+                errs()<<"Erased\n";
                 it2--;
-
-                // inst->removeFromParent();
-
-            } else {
-                errs() << "THIS IS NOT FOUND\n";
-                binary_op_list.push_back(binary_op);
-
+                return;
             }
 
+savetheins:
+                addBinaryOp(binary_op);
 
         }
 
         void
         processInstruction(Instruction *inst, BasicBlock &bb, BasicBlock::iterator &it, llvm::LLVMContext &context) {
+            bool nothing_matched = false;
             switch (inst->getOpcode()) {
                 case Instruction::Add:
-                    processAddInst(inst, &bb, it, context);
+                case Instruction::Sub:
+                case Instruction::Mul:
+                case Instruction::SDiv:
+                case Instruction::SRem:
+                case Instruction::And:
+                case Instruction::Or:
+                case Instruction::Xor:
+
+                    processBinaryInst(inst, &bb, it, context);
+                    errs() << "\n---------\n";
                     break;
+
+
                 case Instruction::Load:
                     processLoadInst(inst);
+                    errs() << "\n---------\n";
                     break;
-                case Instruction::Alloca:
-                    processAllocaInst(inst);
+
+
+                case Instruction::Alloca: {
+                    std::string name = processAllocaInst(inst);
+                    errs()<<"Allocating: "<<name<<"\n";
+//                    errs()<<"\n---------\n";
                     break;
-                case Instruction::Store:
-                    processStoreInst(inst);
+                }
+
+
+                case Instruction::Store: {
+                    std::string sname = processStoreInst(inst);
+                    if (!sname.empty()) {
+                        errs() << "Store to: " << sname << "\n";
+                        invalidateExpr(sname);
+                    }
                     break;
+                }
                 default:
-                    errs() << "Instruction OPCODE not supported\n";
+                    nothing_matched = true;
+
             }
+
+            // if(!nothing_matched){
+            // errs()<<"\n---------\n";
+            // }
         }
 
 
-        bool runOnFunction(Function &F) override {
-
-            ++HelloCounter;
+        llvm::LLVMContext *context;
+        bool runOnModule(Module &M) override {
             std::map<std::string, int> opcode_map;
-            llvm::LLVMContext &context = F.getContext();
-            for (Function::iterator bb = F.begin(), e = F.end(); bb != e; bb++) {
-                for (BasicBlock::iterator i = bb->begin(), i2 = bb->end(); i != i2; i++) {
-                    // Processing this instruction
-                    // Processing each of the instruction.
-                    Instruction * inst = dyn_cast<Instruction>(i);
-                    processInstruction(inst, *bb, i, context);
+            llvm::LLVMContext &context2 = M.getContext();
+            context = &context2;
+            module = &M;
+            for (Module::iterator mm = M.begin(), ee = M.end(); mm != ee; mm++) {
+                for (Function::iterator bb = mm->begin(), e = mm->end(); bb != e; bb++) {
+                    for (BasicBlock::iterator i = bb->begin(), i2 = bb->end(); i != i2; i++) {
+                        // Processing this instruction
+                        // Processing each of the instruction.
+                       Instruction * inst = dyn_cast<Instruction>(i);
+//                       errs()<<*inst<<"\n";
+                        processInstruction(inst, *bb, i, context2);
+                    }
+                    errs() << "New function: \n";
+                    binary_op_list.clear();
+                    locals.clear();
                 }
             }
 
             return false;
-
         }
     };
 }
 
-char Hello2::ID = 0;
-static RegisterPass <Hello2>
-        Y("hello2", "Hello World Pass (with getAnalysisUsage implemented)");
+char ModulePassUtil::ID = 0;
+static RegisterPass<ModulePassUtil> X("ModulePassUtil", "ModulePassUtilHello World Pass");
+
+
