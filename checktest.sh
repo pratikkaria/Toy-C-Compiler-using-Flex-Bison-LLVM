@@ -8,3 +8,4 @@ diff working_test.ir test.ir
 echo "One done"
 diff working_partial_test.ir partial_test.ir
 #vimdiff test.ll test.ir
+echo "Two done"
