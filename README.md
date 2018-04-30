@@ -60,10 +60,31 @@ expression type:
 Global variables
 
 ~~~
+int ga=10;
+int gb=20;
+int gc=0;
+
+int add(){
+	gc = ga+gb;
+	return gc;
+}
+
+~~~
+
+Two operations in a single statement.
+
+~~~
  	int la = 10;
     int lb = 20;
     int lc = la+lb*2;
     int ld = la+lb*2;
+~~~
+
+Direct return from function
+~~~
+int add(int a, int b){
+	return a+b;
+}
 ~~~
 
 ## TO Run

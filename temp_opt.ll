@@ -5,12 +5,25 @@ target triple = "x86_64-pc-linux-gnu"
 @.str = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 
 ; Function Attrs: nounwind uwtable
+define i32 @add(i32 %a, i32 %b) #0 {
+  %1 = alloca i32, align 4
+  %2 = alloca i32, align 4
+  store i32 %a, i32* %1, align 4
+  store i32 %b, i32* %2, align 4
+  %3 = load i32, i32* %1, align 4
+  %4 = load i32, i32* %2, align 4
+  %5 = add nsw i32 %3, %4
+  ret i32 %5
+}
+
+; Function Attrs: nounwind uwtable
 define i32 @main() #0 {
   %1 = alloca i32, align 4
   %la = alloca i32, align 4
   %lb = alloca i32, align 4
   %lc = alloca i32, align 4
   %ld = alloca i32, align 4
+  %sum = alloca i32, align 4
   store i32 0, i32* %1, align 4
   store i32 10, i32* %la, align 4
   store i32 20, i32* %lb, align 4
@@ -24,10 +37,16 @@ define i32 @main() #0 {
   %8 = mul nsw i32 %7, 2
   %9 = add nsw i32 %6, %8
   store i32 %9, i32* %ld, align 4
-  %10 = load i32, i32* %lc, align 4
-  %11 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %10)
-  %12 = load i32, i32* %ld, align 4
-  %13 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %12)
+  %10 = load i32, i32* %la, align 4
+  %11 = load i32, i32* %lb, align 4
+  %12 = call i32 @add(i32 %10, i32 %11)
+  store i32 %12, i32* %sum, align 4
+  %13 = load i32, i32* %sum, align 4
+  %14 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %13)
+  %15 = load i32, i32* %lc, align 4
+  %16 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %15)
+  %17 = load i32, i32* %ld, align 4
+  %18 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %17)
   ret i32 0
 }
 
