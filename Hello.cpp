@@ -197,7 +197,11 @@ namespace {
 
                         //check here
                         Binary_OP *search_binary_op = isBinaryOpPresent(binary_op);
-                        if(search_binary_op==nullptr){
+                        if(search_binary_op==nullptr ){
+                            if(store_inst->getOpcode()==Instruction::Ret){
+                                errs()<<"This is Return\n";
+                                return binary_op;
+                            }
                             AllocaInst* pa = new AllocaInst(llvm::Type::getInt32Ty(*context), 0, binary_op_tmp->val);
                             processAllocaInst(pa);
                             LoadInst *newLoad = new LoadInst(pa);
