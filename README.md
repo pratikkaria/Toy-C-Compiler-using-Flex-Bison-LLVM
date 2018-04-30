@@ -3,12 +3,9 @@ Submitted by: Sandeep Kumar
 ID: 2017ANZ8353
 
 ## Dependcies:
-Flex  
-Bison  
 LLVM 3.8
 
-## Things done
-Global Constant Propagation  
+## Things done 
 Global Common sub expression elimination.
 
 ## Trying out LLVM optimization flags
@@ -50,8 +47,31 @@ Global Common sub expression elimination.
  our own old code which does no such thing. Using this we can see that constants like 10+20 is folder to 30. However if a variable is constant and then it is assigned
  to some other variable after adding to some constant, then it is not able to figure out that it is constant. May be some different flag is required for this.
 
-##
-cmake  <path to root> -DBUILD_SHARED_LIBS:BOOL=on
-make -j8
-make sure ll file is there
-run ./check
+## Supported
+expression type:
+
+~~~
+   int la = 10;
+   int lb = 20;
+   int lc = la+lb;
+   int ld = la+lb;
+~~~
+
+Global variables
+
+~~~
+ 	int la = 10;
+    int lb = 20;
+    int lc = la+lb*2;
+    int ld = la+lb*2;
+~~~
+
+## TO Run
+copy the Hello.cpp and model. h in the lib/Transform/Hello folder of the source root of llvm  
+~~~
+cmake  [path to root] -DBUILD_SHARED_LIBS:BOOL=on  
+make -j8  
+run ./checktest  
+~~~
+
+checktest contains commands for *opt*
