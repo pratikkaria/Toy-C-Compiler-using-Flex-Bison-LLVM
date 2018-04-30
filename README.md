@@ -96,3 +96,7 @@ run ./checktest
 ~~~
 
 checktest contains commands for *opt*
+
+## Extra
+We were creating extra variable to store temp variables. But that would take extra memory references. Hello_reg.cpp contains sample code where this can be done without using temp variables, however that is not complete.
+
