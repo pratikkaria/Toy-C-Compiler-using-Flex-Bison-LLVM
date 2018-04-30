@@ -4,15 +4,15 @@ parent_folder="/home/sandeep/Downloads/llvm"
 
 curr_folder=$(pwd)
 
-tar -xf $tar_path -C $parent_folder
+#tar -xf $tar_path -C $parent_folder
 
 
-cp Hello.cpp model.h $source_folder/lib/Transforms/Hello
+#cp Hello.cpp model.h $source_folder/lib/Transforms/Hello
 
 cd $parent_folder
 mkdir build
 cd build
-cmake  $source_folder -DBUILD_SHARED_LIBS:BOOL=on  
+#cmake  $source_folder -DBUILD_SHARED_LIBS:BOOL=on  
 make -j8
 cd $curr_folder
 ./checktest.sh
