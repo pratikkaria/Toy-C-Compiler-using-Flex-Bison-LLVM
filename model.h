@@ -1,4 +1,5 @@
 #include "llvm/IR/Value.h"
+#include "llvm/IR/Instruction.h"
 
 using namespace llvm;
 class Binary_OP{
@@ -9,8 +10,8 @@ public:
     std::string b;
     // assigned to
     std::string val;
-    Value *value;
-    std::string inst;
+    Instruction *inst;
+    std::string inst_str;
     int opcode;
     bool isvalid = true;
 

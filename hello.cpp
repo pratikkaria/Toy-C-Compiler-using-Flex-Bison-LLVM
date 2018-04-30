@@ -132,7 +132,7 @@ namespace {
                 binary_op_list.push_back(binary_op);
             }
 
-            pre_locals[binary_op->inst] = binary_op->val;
+            pre_locals[binary_op->inst_str] = binary_op->val;
 
         }
 
@@ -167,8 +167,10 @@ namespace {
 
         }
 
-        Binary_OP * findTargetVariable(Instruction *inst, BasicBlock *pb, BasicBlock::iterator &it2){
-            Binary_OP *binary_op = new Binary_OP();
+        Binary_OP * findTargetVariable(Binary_OP *binary_op, BasicBlock *pb, BasicBlock::iterator &it2){
+            Binary_OP *binary_op_tmp = new Binary_OP();
+            Instruction *inst = binary_op->inst;
+
 //            binary_op->isvalid = false;
             Instruction * store_inst;
 //            errs()<<"Looking for users"<<*inst<<"\n";
@@ -179,38 +181,57 @@ namespace {
                         std::string stor_val = processStoreInst(store_inst);
                         if (!stor_val.empty()) {
                             errs() << "Final Saving to: " << stor_val << "\n";
-                            binary_op->val = stor_val;
-                            binary_op->isvalid = true;
-                            return binary_op;
+                            binary_op_tmp->val = stor_val;
+                            binary_op_tmp->isvalid = true;
+                            return binary_op_tmp;
                         } else {
                             errs() << "No store operand found\n";
                             // create a new variable and store the value there.
                         }
                     }else{
+                        errs()<<"This is not store. save main "<<*inst<<"\n";
                         errs()<<"THis is not store. save"<<*store_inst<<"\n";
-                        binary_op =  findTargetVariable(store_inst, pb, it2);
-                        binary_op->val="tmp_"+binary_op->val;
+                        binary_op_tmp->inst = store_inst;
+                        binary_op_tmp =  findTargetVariable(binary_op_tmp, pb, it2);
+                        binary_op_tmp->val="tmp_"+binary_op_tmp->val;
 
-                        // AllocaInst* pa = new AllocaInst(llvm::Type::getInt32Ty(*context), 0, binary_op->val);
-                        // StoreInst* sa = new StoreInst(store_inst, pa);
-                        // errs()<<"Alloc inst: "<<*pa<<"\n";
-                        // errs()<<"Store inst: "<<*sa<<"\n";
+                        //check here
+                        Binary_OP *search_binary_op = isBinaryOpPresent(binary_op);
+                        if(search_binary_op==nullptr){
+                            AllocaInst* pa = new AllocaInst(llvm::Type::getInt32Ty(*context), 0, binary_op_tmp->val);
+                            processAllocaInst(pa);
+                            LoadInst *newLoad = new LoadInst(pa);
+                            inst->replaceAllUsesWith(newLoad);
+                            StoreInst* sa = new StoreInst(inst, pa);
 
-                        // pb->getInstList().insert(it2, pa);
-                        // it2++;
-                        // pb->getInstList().insert(it2, sa);
-                        // it2++;
-                        
+                            errs()<<"Alloc inst: "<<*pa<<"\n";
+                            errs()<<"Store inst: "<<*sa<<"\n";
+
+                            errs()<<"it2 at alloc insertion is: "<<(*it2)<<"\n";
+                            pb->getInstList().insert(it2, pa);
+                            it2++;
+                            
+                            errs()<<"it2 at of store insertion is: "<<(*it2)<<"\n";
+                            pb->getInstList().insert(it2, sa);
+                            // it2++;
+
+                            errs()<<"it2 at load insertion is: "<<(*it2)<<"\n";
+                            pb->getInstList().insert(it2,newLoad);
+                            it2--;  
+                        return binary_op_tmp;
+
+                        }      else{
+                            return search_binary_op;
+                        }
                         
                         
 //                        binary_op->isvalid = false;
-                        return binary_op;
                     }
                 }else{
                     errs()<<"This is not instructio. save\n";
                 }
             }
-            return binary_op;
+            return binary_op_tmp;
         }
 
         // Function from here
@@ -299,17 +320,17 @@ namespace {
             binary_op->b = operand_list[1];
             binary_op->opcode = inst->getOpcode();
             binary_op->isvalid = true;
-            binary_op->value = inst;
+            binary_op->inst = inst;
 
                 inst->print(rso);
-            binary_op->inst = rso.str();
+            binary_op->inst_str = rso.str();
 
 
 
 
 //            errs()<<"DONE Creating Binary op object\n";
 
-           Binary_OP *temp = findTargetVariable(inst, pb, it2);
+           Binary_OP *temp = findTargetVariable(binary_op, pb, it2);
             binary_op->val = temp->val;
             binary_op->isvalid = temp->isvalid;
 //            errs()<<"DONE Looking for users\n";
@@ -335,8 +356,8 @@ namespace {
                 }else if(ret ==2){
                     value = module->getNamedValue(binary_op_check->val);
                 }else if(ret==4){
-                    errs()<<"trying to assign value: "<<*(binary_op_check->value)<<"\n";
-                    value = binary_op_check->value;
+                    errs()<<"trying to assign value: "<<*(binary_op_check->inst)<<"\n";
+                    value = binary_op_check->inst;
                 }else{
                     goto savetheins;
                 }
@@ -449,9 +470,11 @@ savetheins:
                     for (BasicBlock::iterator i = bb->begin(), i2 = bb->end(); i != i2; i++) {
                         // Processing this instruction
                         // Processing each of the instruction.
+                        // BasicBlock::iterator back_up = i;
                        Instruction * inst = dyn_cast<Instruction>(i);
 //                       errs()<<*inst<<"\n";
                         processInstruction(inst, *bb, i, context2);
+                        // i = back_up;
                     }
                     errs() << "New function: \n";
                     binary_op_list.clear();
