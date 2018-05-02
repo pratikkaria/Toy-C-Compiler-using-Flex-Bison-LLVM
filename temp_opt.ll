@@ -20,14 +20,19 @@ define i32 @main() #0 {
   %1 = alloca i32, align 4
   %a = alloca i32, align 4
   %b = alloca i32, align 4
+  %b2 = alloca i32, align 4
   %c = alloca i32, align 4
   %d = alloca i32, align 4
   %e = alloca i32, align 4
   %f = alloca i32, align 4
   %tmp = alloca i32, align 4
+  %l = alloca i32, align 4
+  %k = alloca i32, align 4
+  %m = alloca i32, align 4
   store i32 0, i32* %1, align 4
   store i32 10, i32* %a, align 4
   store i32 20, i32* %b, align 4
+  store i32 20, i32* %b2, align 4
   %2 = load i32, i32* %a, align 4
   %3 = load i32, i32* %b, align 4
   %4 = add nsw i32 %2, %3
@@ -52,6 +57,26 @@ define i32 @main() #0 {
   %19 = load i32, i32* @gb, align 4
   %20 = add nsw i32 %18, %19
   store i32 %20, i32* %tmp, align 4
+  store i32 10, i32* %l, align 4
+  %21 = load i32, i32* %l, align 4
+  %22 = icmp slt i32 %21, 10
+  br i1 %22, label %23, label %27
+
+; <label>:23                                      ; preds = %0
+  %24 = load i32, i32* %a, align 4
+  %25 = load i32, i32* %b, align 4
+  %26 = add nsw i32 %24, %25
+  store i32 %26, i32* %k, align 4
+  br label %31
+
+; <label>:27                                      ; preds = %0
+  %28 = load i32, i32* %a, align 4
+  %29 = load i32, i32* %b2, align 4
+  %30 = add nsw i32 %28, %29
+  store i32 %30, i32* %m, align 4
+  br label %31
+
+; <label>:31                                      ; preds = %27, %23
   ret i32 0
 }
 

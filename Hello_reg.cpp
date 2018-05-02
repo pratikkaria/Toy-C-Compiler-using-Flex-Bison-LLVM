@@ -390,7 +390,7 @@ struct ModulePassUtil : public ModulePass {
       // errs()<<"Erasing: "<<*inst<<"\n";
       inst->eraseFromParent();
       errs() << "Erased\n";
-      it2--;
+      // it2--;
       return;
     }
 
