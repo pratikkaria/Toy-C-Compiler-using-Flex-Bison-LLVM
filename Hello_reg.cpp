@@ -48,61 +48,63 @@ struct ModulePassUtil : public ModulePass {
 
   ModulePassUtil() : ModulePass(ID) {}
 
-  std::string getNextTemp(){
-    ++ tmp;
+  std::string getNextTemp() {
+    ++tmp;
     return std::to_string(tmp);
   }
 
-  void checkOpCode(int opcode){
-     switch (opcode) {
+  void checkOpCode(int opcode) {
+    switch (opcode) {
     case Instruction::Add:
-    errs()<<"Add opcode\n";
-    break;
+      errs() << "Add opcode\n";
+      break;
     case Instruction::Sub:
-    errs()<<"Sub opcode\n";
-    break;
+      errs() << "Sub opcode\n";
+      break;
     case Instruction::Mul:
-    errs()<<"Mul opcode\n";
-    break;
+      errs() << "Mul opcode\n";
+      break;
     case Instruction::SDiv:
-    errs()<<"SDiv opcode\n";
-    break;
+      errs() << "SDiv opcode\n";
+      break;
     case Instruction::SRem:
-    errs()<<"SRem opcode\n";
-    break;
+      errs() << "SRem opcode\n";
+      break;
     case Instruction::And:
-    errs()<<"And opcode\n";
-    break;
+      errs() << "And opcode\n";
+      break;
     case Instruction::Or:
-    errs()<<"Or opcode\n";
-    break;
+      errs() << "Or opcode\n";
+      break;
     case Instruction::Xor:
-    errs()<<"Xor opcode\n";
-    break;
+      errs() << "Xor opcode\n";
+      break;
     case Instruction::Load:
-    errs()<<"Load opcode\n";
-    break;
+      errs() << "Load opcode\n";
+      break;
     case Instruction::Alloca:
-    errs()<<"Alloca opcode\n";
-    break;
+      errs() << "Alloca opcode\n";
+      break;
     case Instruction::Store:
-    errs()<<"Store opcode\n";
-    break;
+      errs() << "Store opcode\n";
+      break;
     default:
-    errs()<<"Nothing matched\n";
+      errs() << "Nothing matched\n";
     }
   }
 
   // Utils
   Binary_OP *isBinaryOpPresent(Binary_OP *binary_op) {
-    errs()<<"Searching for a: "<<binary_op->a<<" b: "<<binary_op->b<<" opcode: "<<binary_op->opcode<<"\n";
+    errs() << "Searching for a: " << binary_op->a << " b: " << binary_op->b
+           << " opcode: " << binary_op->opcode << "\n";
     std::vector<Binary_OP *>::iterator it;
     for (it = binary_op_list.begin(); it != binary_op_list.end(); it++) {
       if (((*it)->a == binary_op->a) && ((*it)->b == binary_op->b) &&
           ((*it)->opcode == binary_op->opcode)) {
-        errs() << "Found in Local. a: " << binary_op->a << " a: " << binary_op->b
-               << " op: " << binary_op->opcode <<"\n";
-               checkOpCode(binary_op->opcode);
+        errs() << "Found in Local. a: " << binary_op->a
+               << " a: " << binary_op->b << " op: " << binary_op->opcode
+               << "\n";
+        checkOpCode(binary_op->opcode);
         if ((*it)->isvalid) {
           return (*it);
         } else {
@@ -117,6 +119,7 @@ struct ModulePassUtil : public ModulePass {
       if (((*it)->a == binary_op->a) && ((*it)->b == binary_op->b) &&
           ((*it)->opcode == binary_op->opcode) && (*it)->isvalid) {
         errs() << "Found in Global\n";
+        (*it)->isGlobal = true;
         return (*it);
       }
     }
@@ -158,14 +161,38 @@ struct ModulePassUtil : public ModulePass {
   void addBinaryOp(Binary_OP *binary_op) {
     int reta = findVar(binary_op->a);
     int retb = findVar(binary_op->b);
+    int retc = 0;
 
-    if (reta == 2 || retb == 2) {
-      errs() << "Saving the expression in GLobal\n";
+    for (User *U : binary_op->inst->users()) {
+      // Value *v = U.get();
+      if (Instruction *load_inst = dyn_cast<Instruction>(U)) {
+        errs() << "Usage: " << *load_inst << "\n";
+        if (load_inst->getOpcode() == Instruction::Store) {
+          std::string name = load_inst->getOperand(1)->getName();
+          errs() << name << "\n";
+          retc = findVar(name);
+          errs() << retc << "\n";
+          if (retc == 2 || retc == 1) {
+            binary_op->name = name;
+          }
+        }
+      }
+    }
+
+    if (reta == 2 && retb == 2 && retc == 2) {
+      errs() << "Saving the expression in GLobal"
+             << "Name: " << binary_op->name << " " << binary_op->a
+             << " b: " << binary_op->b << " code: " << binary_op->opcode
+             << "\n";
+
+      // search for global
+
       global_binary_op_list.push_back(binary_op);
     } else {
       errs() << "Saving the expression in binary_local. a: "
-      <<"Name: "<<binary_op->name<<" "
-      <<binary_op->a<<" b: "<<binary_op->b<<" code: "<<binary_op->opcode<<"\n";
+             << "Name: " << binary_op->name << " " << binary_op->a
+             << " b: " << binary_op->b << " code: " << binary_op->opcode
+             << "\n";
       binary_op_list.push_back(binary_op);
     }
   }
@@ -187,7 +214,7 @@ struct ModulePassUtil : public ModulePass {
 
     if (locals.find(name) != locals.end()) {
       return 1;
-    } 
+    }
 
     GlobalVariable *gvar = module->getNamedGlobal(name);
     GlobalValue *gval = module->getNamedValue(name);
@@ -199,8 +226,6 @@ struct ModulePassUtil : public ModulePass {
       return 0;
     }
   }
-
-
 
   // Function from here
   std::string processLoadInst(Instruction *inst) {
@@ -237,8 +262,10 @@ struct ModulePassUtil : public ModulePass {
           std::string operandname = processLoadInst(load_inst);
           operand_list.push_back(operandname);
         } else {
-          errs() << "This is a temp, must be calculated before:" << *load_inst << " \n";
-          // errs() << "This must have been calculated before. Name is : "<<load_inst->getOpcode()<<" :\n";
+          errs() << "This is a temp, must be calculated before:" << *load_inst
+                 << " \n";
+          // errs() << "This must have been calculated before. Name is :
+          // "<<load_inst->getOpcode()<<" :\n";
           // search in tmp
           std::vector<std::string> ve = getOperands(load_inst);
           Binary_OP *check_tmp_local = new Binary_OP();
@@ -246,7 +273,7 @@ struct ModulePassUtil : public ModulePass {
           check_tmp_local->b = ve[1];
           check_tmp_local->opcode = load_inst->getOpcode();
 
-          Binary_OP * res_local = isBinaryOpPresent(check_tmp_local);
+          Binary_OP *res_local = isBinaryOpPresent(check_tmp_local);
           // if not then get a new tmp
           // std::string tmp_name = getNextTemp();
           // locals[tmp_name] = load_inst;
@@ -275,7 +302,9 @@ struct ModulePassUtil : public ModulePass {
 
     errs() << "Bin inst: " << *inst << "\n";
     operand_list = getOperands(inst);
-  
+
+    errs() << "Name: " << inst->getName() << "\n";
+
     errs() << "Total operands: " << operand_list.size() << "\n";
 
     std::vector<std::string>::iterator it;
@@ -294,36 +323,34 @@ struct ModulePassUtil : public ModulePass {
 
     binary_op->name = getNextTemp();
 
-
-    // Binary_OP *temp = findTargetVariable(binary_op, pb, it2);
-    // if (temp == nullptr) {
-    //   return;
-    // }
-    // errs()<<"findTargetVariable: a: "<<temp->a<<" b: "<<temp->b<<" code: "<<temp->opcode<<"\n";
-    // binary_op->isvalid = temp->isvalid;
     Binary_OP *binary_op_check = isBinaryOpPresent(binary_op);
 
     if (binary_op_check != nullptr) {
-      errs() << "Eliminating with  inst: " << *(binary_op_check->inst) << "\n";
-      // int ret = findVar(binary_op_check->val);
-      // errs() << "ret is: " << ret << " for " << binary_op_check->inst_str <<
-      // "\n";
-
+      
+      int vartype = findVar(binary_op_check->name);
       Value *value;
 
-      // if (ret == 2) {
-      //   value = module->getNamedValue(binary_op_check->val);
-      //   LoadInst *newLoad = new LoadInst(value);
-      //   errs()<<"Loading: "<<*value<<"\n";
-      //   pb->getInstList().insert(it2, newLoad);
-      //   value = newLoad;
-      // } else
-
-      if (binary_op_check->inst == nullptr) {
+      if (vartype==2) {
+        value = module->getNamedValue(binary_op_check->name);
+        LoadInst *newLoad = new LoadInst(value);
+        errs() << "Loading: " << *value << "\n";
+        pb->getInstList().insert(it2, newLoad);
+        value = newLoad;
+      } else if (binary_op_check->inst == nullptr) {
         goto savetheins;
-      } else {
+      } else if(vartype==1){
+        value = locals[binary_op_check->name];
+        LoadInst *newLoad = new LoadInst(value);
+        errs() << "Loading: " << *value << "\n";
+        pb->getInstList().insert(it2, newLoad);
+        value = newLoad;
+      } else{
         value = binary_op_check->inst;
       }
+
+      errs() << "Eliminating inst: " << *inst << " with "
+             << *value << " name is: "<<binary_op_check->name<<"\n";
+
 
       // LoadInst *newLoad = new LoadInst(value);
       // pb->getInstList().insert(it2, newLoad);
@@ -334,8 +361,9 @@ struct ModulePassUtil : public ModulePass {
       for (User *U : inst->users()) {
         U->replaceUsesOfWith(inst, value);
       }
-      // errs() << "Replacing users DONE\n";
-      errs() << "Replacing "<<*inst <<" with: " << *value << "\n";
+
+      errs() << "Replacing users DONE\n";
+      errs() << "Replacing " << *inst << " with: " << *value << "\n";
       inst->replaceAllUsesWith(value);
       errs() << "Replacing inst done\n";
 
@@ -347,7 +375,7 @@ struct ModulePassUtil : public ModulePass {
           if (load_inst->getOpcode() == Instruction::Load) {
             load_inst->eraseFromParent();
             // it2--;
-            errs() << "Erased " << (*it2) << "\n";
+            errs() << "Erased, now at " << (*it2) << "\n";
           } else {
             errs() << "not a load\n";
           }
@@ -356,15 +384,13 @@ struct ModulePassUtil : public ModulePass {
           // it2--;
         }
       }
+      errs() << "Replacing operands Done at \n";
       it2--;
-      // it2--;
 
-      errs() << "Replacing operands Done\n";
-
+      // errs()<<"Erasing: "<<*inst<<"\n";
       inst->eraseFromParent();
       errs() << "Erased\n";
       it2--;
-      // it2--;
       return;
     }
 
@@ -432,12 +458,12 @@ struct ModulePassUtil : public ModulePass {
           Instruction *inst = dyn_cast<Instruction>(basic_iterator);
           processInstruction(inst, *function_iterator, basic_iterator);
         }
-
-        // clearing out the local value of theold functions.
-        binary_op_list.clear();
-        locals.clear();
-        tmp= 0;
       }
+      binary_op_list.clear();
+      locals.clear();
+      tmp = 0;
+      errs() << "\n========\n";
+      // clearing out the local value of theold functions.
     }
 
     return false;

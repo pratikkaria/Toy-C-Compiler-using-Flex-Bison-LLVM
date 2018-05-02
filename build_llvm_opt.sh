@@ -8,7 +8,6 @@ curr_folder=$(pwd)
 
 
 cp Hello_reg.cpp $source_folder/lib/Transforms/Hello/Hello.cpp
-
 cp model.h $source_folder/lib/Transforms/Hello/model.h
 
 cd $parent_folder

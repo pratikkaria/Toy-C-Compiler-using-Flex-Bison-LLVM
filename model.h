@@ -12,6 +12,9 @@ public:
     int opcode;
     bool isvalid = true;
 
+    // this is utiol
+    bool isGlobal = false;
+
 
 
 };

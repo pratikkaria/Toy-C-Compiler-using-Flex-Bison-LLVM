@@ -4,15 +4,10 @@ extern int printf(char const *format, ...);
 
 int main(){
 
-    int la = 10;
-    int lb = 20;
-    int lc = la+lb*2-2;
-    int ld = la+lb*2-2;
+    int a= 10;
+    int b=20;
 
-    printf("%d\n", lc);
-    printf("%d\n", ld);
-
-
-    
+    int c = a+b;
+    int d = a+b;   
     return 0;
 }
