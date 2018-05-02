@@ -357,10 +357,10 @@ struct ModulePassUtil : public ModulePass {
       // it2++;
       // errs() << "new load inst: " << *newLoad << "\n";
 
-      errs() << "Replacing users\n";
-      for (User *U : inst->users()) {
-        U->replaceUsesOfWith(inst, value);
-      }
+      // errs() << "Replacing users\n";
+      // for (User *U : inst->users()) {
+      //   U->replaceUsesOfWith(inst, value);
+      // }
 
       errs() << "Replacing users DONE\n";
       errs() << "Replacing " << *inst << " with: " << *value << "\n";
