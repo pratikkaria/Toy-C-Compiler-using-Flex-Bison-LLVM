@@ -12,6 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "model.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/CFG.h"
@@ -41,19 +44,65 @@ struct ModulePassUtil : public ModulePass {
 
   std::vector<Binary_OP *> binary_op_list;
   std::map<std::string, Value *> locals;
-  std::map<std::string, std::string> pre_locals;
+  int tmp = 0;
 
   ModulePassUtil() : ModulePass(ID) {}
 
+  std::string getNextTemp(){
+    ++ tmp;
+    return std::to_string(tmp);
+  }
+
+  void checkOpCode(int opcode){
+     switch (opcode) {
+    case Instruction::Add:
+    errs()<<"Add opcode\n";
+    break;
+    case Instruction::Sub:
+    errs()<<"Sub opcode\n";
+    break;
+    case Instruction::Mul:
+    errs()<<"Mul opcode\n";
+    break;
+    case Instruction::SDiv:
+    errs()<<"SDiv opcode\n";
+    break;
+    case Instruction::SRem:
+    errs()<<"SRem opcode\n";
+    break;
+    case Instruction::And:
+    errs()<<"And opcode\n";
+    break;
+    case Instruction::Or:
+    errs()<<"Or opcode\n";
+    break;
+    case Instruction::Xor:
+    errs()<<"Xor opcode\n";
+    break;
+    case Instruction::Load:
+    errs()<<"Load opcode\n";
+    break;
+    case Instruction::Alloca:
+    errs()<<"Alloca opcode\n";
+    break;
+    case Instruction::Store:
+    errs()<<"Store opcode\n";
+    break;
+    default:
+    errs()<<"Nothing matched\n";
+    }
+  }
+
   // Utils
   Binary_OP *isBinaryOpPresent(Binary_OP *binary_op) {
+    errs()<<"Searching for a: "<<binary_op->a<<" b: "<<binary_op->b<<" opcode: "<<binary_op->opcode<<"\n";
     std::vector<Binary_OP *>::iterator it;
-
     for (it = binary_op_list.begin(); it != binary_op_list.end(); it++) {
       if (((*it)->a == binary_op->a) && ((*it)->b == binary_op->b) &&
           ((*it)->opcode == binary_op->opcode)) {
-        errs() << "Found in Local. " << binary_op->a << " " << binary_op->b
-               << " " << binary_op->opcode << "\n";
+        errs() << "Found in Local. a: " << binary_op->a << " a: " << binary_op->b
+               << " op: " << binary_op->opcode <<"\n";
+               checkOpCode(binary_op->opcode);
         if ((*it)->isvalid) {
           return (*it);
         } else {
@@ -107,7 +156,6 @@ struct ModulePassUtil : public ModulePass {
   }
 
   void addBinaryOp(Binary_OP *binary_op) {
-    errs() << "Adding a binary op\n";
     int reta = findVar(binary_op->a);
     int retb = findVar(binary_op->b);
 
@@ -115,11 +163,11 @@ struct ModulePassUtil : public ModulePass {
       errs() << "Saving the expression in GLobal\n";
       global_binary_op_list.push_back(binary_op);
     } else {
-      errs() << "Saving the expression in local\n";
+      errs() << "Saving the expression in binary_local. a: "
+      <<"Name: "<<binary_op->name<<" "
+      <<binary_op->a<<" b: "<<binary_op->b<<" code: "<<binary_op->opcode<<"\n";
       binary_op_list.push_back(binary_op);
     }
-
-    pre_locals[binary_op->inst_str] = binary_op->val;
   }
 
   int findVar(std::string name) {
@@ -133,13 +181,13 @@ struct ModulePassUtil : public ModulePass {
 
     std::size_t found = name.find(" ");
     if (found != std::string::npos) {
-      errs() << "This is a constant." << name << "\n";
+      // errs() << "This is a constant." << name << "\n";
       return 4;
     }
 
     if (locals.find(name) != locals.end()) {
       return 1;
-    }
+    } 
 
     GlobalVariable *gvar = module->getNamedGlobal(name);
     GlobalValue *gval = module->getNamedValue(name);
@@ -152,74 +200,7 @@ struct ModulePassUtil : public ModulePass {
     }
   }
 
-  Binary_OP *findTargetVariable(Binary_OP *binary_op, BasicBlock *pb,
-                                BasicBlock::iterator &it2) {
-    Binary_OP *binary_op_tmp = new Binary_OP();
-    Instruction *inst = binary_op->inst;
-    Instruction *store_inst;
-    for (User *U : inst->users()) {
-      if (store_inst = dyn_cast<Instruction>(U)) {
-        if (store_inst->getOpcode() == Instruction::Store) {
-          std::string stor_val = processStoreInst(store_inst);
-          if (!stor_val.empty()) {
-            errs() << "Final Saving to: " << stor_val << "\n";
-            binary_op_tmp->val = stor_val;
-            binary_op_tmp->isvalid = true;
-            return binary_op_tmp;
-          } else {
-            errs() << "No store operand found\n";
-            // create a new variable and store the value there.
-          }
-        } else {
-          errs() << "This is not store. main " << *inst << "\n";
-          errs() << "THis is not store. operans inst" << *store_inst << "\n";
 
-          // If this is the return statement then there is no need to create
-          // extra temo variable
-          if (store_inst->getOpcode() == Instruction::Ret) {
-            return nullptr;
-          }
-          binary_op_tmp->inst = store_inst;
-          binary_op_tmp = findTargetVariable(binary_op_tmp, pb, it2);
-          binary_op_tmp->val = "tmp_" + binary_op_tmp->val;
-
-          // check here
-          Binary_OP *search_binary_op = isBinaryOpPresent(binary_op);
-          if (search_binary_op == nullptr) {
-            // AllocaInst *pa = new AllocaInst(llvm::Type::getInt32Ty(*context),
-            // 0,
-            //                                 binary_op_tmp->val);
-            // processAllocaInst(pa);
-            // LoadInst *newLoad = new LoadInst(pa);
-            // inst->replaceAllUsesWith(newLoad);
-            // StoreInst *sa = new StoreInst(inst, pa);
-
-            // errs() << "Alloc inst: " << *pa << "\n";
-            // errs() << "Store inst: " << *sa << "\n";
-
-            // errs() << "it2 at alloc insertion is: " << (*it2) << "\n";
-            // pb->getInstList().insert(it2, pa);
-            // it2++;
-
-            // errs() << "it2 at of store insertion is: " << (*it2) << "\n";
-            // pb->getInstList().insert(it2, sa);
-            // // it2++;
-
-            // errs() << "it2 at load insertion is: " << (*it2) << "\n";
-            // pb->getInstList().insert(it2, newLoad);
-            // it2--;
-            return binary_op_tmp;
-
-          } else {
-            return search_binary_op;
-          }
-        }
-      } else {
-        errs() << "This is not instructio. save\n";
-      }
-    }
-    return binary_op_tmp;
-  }
 
   // Function from here
   std::string processLoadInst(Instruction *inst) {
@@ -236,7 +217,7 @@ struct ModulePassUtil : public ModulePass {
   }
 
   std::string processStoreInst(Instruction *inst) {
-    errs() << "Checking " << *inst << "\n";
+    errs() << "processInstruction Store " << *inst << "\n";
     if (inst->getOpcode() != Instruction::Store) {
       errs() << "Return null\n";
       return "";
@@ -247,14 +228,8 @@ struct ModulePassUtil : public ModulePass {
     return operand_name;
   }
 
-  void processBinaryInst(Instruction *inst, BasicBlock *pb,
-                         BasicBlock::iterator &it2) {
+  std::vector<std::string> getOperands(Instruction *inst) {
     std::vector<std::string> operand_list;
-    std::string type_str;
-    llvm::raw_string_ostream rso(type_str);
-
-    errs() << "Bin inst: " << *inst << "\n";
-
     for (Use &U : inst->operands()) {
       Value *v = U.get();
       if (Instruction *load_inst = dyn_cast<Instruction>(v)) {
@@ -262,16 +237,20 @@ struct ModulePassUtil : public ModulePass {
           std::string operandname = processLoadInst(load_inst);
           operand_list.push_back(operandname);
         } else {
-          errs() << "Some other inst (expecting Load):" << *load_inst << " \n";
-          errs() << "This must have been calculated before.\n";
-          load_inst->print(rso);
-          if (pre_locals.find(rso.str()) != pre_locals.end()) {
-            errs() << "FOUND store in " << pre_locals[rso.str()] << "\n";
-            operand_list.push_back(pre_locals[rso.str()]);
-          } else {
-            errs() << "NOT FOUND\n";
-            return;
-          }
+          errs() << "This is a temp, must be calculated before:" << *load_inst << " \n";
+          // errs() << "This must have been calculated before. Name is : "<<load_inst->getOpcode()<<" :\n";
+          // search in tmp
+          std::vector<std::string> ve = getOperands(load_inst);
+          Binary_OP *check_tmp_local = new Binary_OP();
+          check_tmp_local->a = ve[0];
+          check_tmp_local->b = ve[1];
+          check_tmp_local->opcode = load_inst->getOpcode();
+
+          Binary_OP * res_local = isBinaryOpPresent(check_tmp_local);
+          // if not then get a new tmp
+          // std::string tmp_name = getNextTemp();
+          // locals[tmp_name] = load_inst;
+          operand_list.push_back(res_local->name);
         }
       } else if (Constant *c = dyn_cast<Constant>(v)) {
 
@@ -285,6 +264,20 @@ struct ModulePassUtil : public ModulePass {
       }
     }
 
+    return operand_list;
+  }
+
+  void processBinaryInst(Instruction *inst, BasicBlock *pb,
+                         BasicBlock::iterator &it2) {
+    std::vector<std::string> operand_list;
+    std::string type_str;
+    llvm::raw_string_ostream rso(type_str);
+
+    errs() << "Bin inst: " << *inst << "\n";
+    operand_list = getOperands(inst);
+  
+    errs() << "Total operands: " << operand_list.size() << "\n";
+
     std::vector<std::string>::iterator it;
     for (it = operand_list.begin(); it != operand_list.end(); it++) {
       errs() << "Operand: " << *it << "\n";
@@ -296,46 +289,39 @@ struct ModulePassUtil : public ModulePass {
     binary_op->opcode = inst->getOpcode();
     binary_op->isvalid = true;
     binary_op->inst = inst;
-
     inst->print(rso);
     binary_op->inst_str = rso.str();
 
-    Binary_OP *temp = findTargetVariable(binary_op, pb, it2);
-    if (temp == nullptr) {
-      return;
-    }
-    binary_op->val = temp->val;
-    binary_op->isvalid = temp->isvalid;
+    binary_op->name = getNextTemp();
 
+
+    // Binary_OP *temp = findTargetVariable(binary_op, pb, it2);
+    // if (temp == nullptr) {
+    //   return;
+    // }
+    // errs()<<"findTargetVariable: a: "<<temp->a<<" b: "<<temp->b<<" code: "<<temp->opcode<<"\n";
+    // binary_op->isvalid = temp->isvalid;
     Binary_OP *binary_op_check = isBinaryOpPresent(binary_op);
 
     if (binary_op_check != nullptr) {
-      errs() << "Eliminating with " << binary_op_check->val
-             << " inst: " << *(binary_op_check->inst) << "\n";
-      int ret = findVar(binary_op_check->val);
-      errs() << "ret is: " << ret << " for " << binary_op_check->val << "\n";
-      // if (ret == 4) {
-      //   // this was a temp. We are dealing with something wierd here;
-      //   // look into binary op for oprans match.
-      //   errs() << "Working on this one"
-      //          << "\n";
-      //   errs() << *inst << "\n";
-      //   errs() << binary_op_check->a << "\n";
-      //   errs() << binary_op_check->b << "\n";
-      // }
+      errs() << "Eliminating with  inst: " << *(binary_op_check->inst) << "\n";
+      // int ret = findVar(binary_op_check->val);
+      // errs() << "ret is: " << ret << " for " << binary_op_check->inst_str <<
+      // "\n";
+
       Value *value;
 
-      if (ret == 2) {
-        value = module->getNamedValue(binary_op_check->val);
-        LoadInst *newLoad = new LoadInst(value);
-        errs()<<"Loading: "<<*value<<"\n";
-        pb->getInstList().insert(it2, newLoad);
-        value = newLoad;
-        // it2++;
-        // value = newLoad;
-      } else if(binary_op_check->inst==nullptr){
-         goto savetheins;
-      }else{
+      // if (ret == 2) {
+      //   value = module->getNamedValue(binary_op_check->val);
+      //   LoadInst *newLoad = new LoadInst(value);
+      //   errs()<<"Loading: "<<*value<<"\n";
+      //   pb->getInstList().insert(it2, newLoad);
+      //   value = newLoad;
+      // } else
+
+      if (binary_op_check->inst == nullptr) {
+        goto savetheins;
+      } else {
         value = binary_op_check->inst;
       }
 
@@ -349,7 +335,7 @@ struct ModulePassUtil : public ModulePass {
         U->replaceUsesOfWith(inst, value);
       }
       // errs() << "Replacing users DONE\n";
-      errs()<<"Replacing with: "<<*value<<"\n";
+      errs() << "Replacing "<<*inst <<" with: " << *value << "\n";
       inst->replaceAllUsesWith(value);
       errs() << "Replacing inst done\n";
 
@@ -367,7 +353,7 @@ struct ModulePassUtil : public ModulePass {
           }
         } else if (Constant *c = dyn_cast<Constant>(v)) {
           errs() << "Constant\n";
-          it2--;
+          // it2--;
         }
       }
       it2--;
@@ -450,7 +436,7 @@ struct ModulePassUtil : public ModulePass {
         // clearing out the local value of theold functions.
         binary_op_list.clear();
         locals.clear();
-        pre_locals.clear();
+        tmp= 0;
       }
     }
 
