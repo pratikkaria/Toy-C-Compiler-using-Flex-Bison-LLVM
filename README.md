@@ -3,6 +3,10 @@ Flex
 Bison
 LLVM 3.8
 
+## Documentation
+A more detailed report, explaining how the code works can be found here:
+[Report](./report.md)
+
 ## Running the code:
 make (See the IR code for demo code test.c)
 make test (To run the demo code test.c using lli)
