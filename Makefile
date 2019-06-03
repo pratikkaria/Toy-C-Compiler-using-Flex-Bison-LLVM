@@ -19,6 +19,8 @@ print:
 clean:
 	$(RM) -rf c.tab.cpp c.tab.hpp cc c.lex.cpp $(OBJS) *.ll *.bc
 
+node.h:
+
 c.tab.cpp: c.y
 	bison -d c.y -o c.tab.cpp
 

@@ -30,6 +30,8 @@ bool debug = false;
 	CommonDeclarationNode *common_dec;
 }
 
+// TOKENS here************************
+
 %token <string> IDENTIFIER I_CONSTANT F_CONSTANT STRING_LITERAL FUNC_NAME SIZEOF B_CONSTANT
 %token <string> BOOL CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE VOID
 %token <token> ';' '='

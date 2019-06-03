@@ -8,8 +8,12 @@ using namespace std;
 extern void yyerror(const char *);
 
 void CodeGenContext::generateCode(BlockNode &rootNode) {
-    cout << "Generating code for ROOT...";
+    cout << "Generating code for ROOT..."<<endl;
+
     rootNode.codeGen(*this);
+    // rootNode.printNode();
+
+    // TODO this is requried to generate the source code.
     module->dump();
 }
 

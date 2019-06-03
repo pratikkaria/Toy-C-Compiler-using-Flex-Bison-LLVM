@@ -22,8 +22,10 @@ typedef vector<VariableDeclaration *> VariableList;
 
 class ASTNode {
 public:
-    bool debug = true;
-
+    bool debug = false;
+    virtual void printNode(){
+        printf("\n%s\n", "Not implemented");
+    }
     virtual Value *codeGen(CodeGenContext &context) { return NULL; }
 };
 
@@ -184,14 +186,6 @@ public:
         cout << "rhs: " << &rhs << endl;
         cout << "-----------" << endl;
     }
-//    BinaryOperatorNode(IdentiferNode &lhs, char op, ExprNode &rhs) :
-//            lhs(lhs), rhs(rhs), op(op) {
-//        cout << "++++++++++" << endl;
-//        cout << "BO: 1: " << op << endl;
-//        cout << "lhs: " << &lhs << endl;
-//        cout << "rhs: " << &rhs << endl;
-//        cout << "-----------" << endl;
-//    }
 
     virtual Value *codeGen(CodeGenContext &context);
 };
@@ -220,12 +214,26 @@ public:
 
     BlockNode() { cout << "Creating a New Block" << endl; }
 
+    virtual void printNode(){
+        printf("Size is: %d\n", statements.size());
+
+        for(std::vector<StmtNode*>::iterator it = statements.begin();
+            it !=statements.end();++it){
+            (*it)->printNode();
+        }
+        cout<<"Done"<<endl;
+    }
+
     virtual Value *codeGen(CodeGenContext &context);
 };
 
 class ReturnStatementNode : public StmtNode {
 public:
     ExprNode *expression;
+
+    void printNode(){
+        cout<<"In ReturnStatementNode"<<endl;
+    }
 
     ReturnStatementNode() {
         expression = NULL;
@@ -240,6 +248,10 @@ class CommonDeclarationNode : public ExprNode {
 public:
     bool isFunc = false;
     bool isPtr = false;
+
+    void printNode(){
+        cout<<"In CommonDeclarationNode. "<<isFunc<<" "<<isPtr<<endl;
+    }
 
     void setIsPtr(bool isPtr) {
         CommonDeclarationNode::isPtr = isPtr;
