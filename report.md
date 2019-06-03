@@ -6,7 +6,21 @@ Our aim is to use some of the LLVM functionality to mark a node as important and
 
 The code that we have till now in the repo contains implementation of some of the basic primitives of C language in LLVM 3.8.
 
-The aim is to generate a valid llvm IR code, whic then is used to generate an object file using the *llvm assembler*.
+The aim is to generate a valid llvm IR code, whic then izs used to generate an object file using the *llvm assembler*.
+
+## LLVM version
+The llvm or clan version has to be 3.8 for the _Makefile_ to work. The location of header files in some other version were changed and if someone is using other than 3.8 version, those locations has to be updated.
+
+To check the version 
+`clan --version`
+
+If it shows something other than 3.8, use these commands to install and set 3.8 version as default
+
+```
+sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.8 100
+
+sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.8 100
+```
 
 ## Key files
 

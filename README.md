@@ -1,3 +1,16 @@
+## Branch Status
+
+
+Name| Description | Status
+---------|----------|---------
+ Master| Compiler Assignment | Working
+ Glamdring | Galmdring Implementation | Working
+
+Name Description Status
+-----------------------
+Main Compiler Assignment Working
+Glamdring Glamdring Implementation In Progress
+
 ## Dependcies:
 Flex
 Bison

@@ -5,10 +5,16 @@ OBJS = c.tab.o  \
        cc.o    \
        c.lex.o  \
 
-LLVMCONFIG = llvm-config
+LLVMCONFIG = llvm-config-3.8
 CPPFLAGS = `$(LLVMCONFIG) --cppflags` -std=c++11
 LDFLAGS = `$(LLVMCONFIG) --ldflags` -lpthread -ldl -lz -lncurses -rdynamic
 LIBS = `$(LLVMCONFIG) --libs`
+
+print:
+	echo $(LLVMCONFIG)
+	echo $(CPPFLAGS)
+	echo $(LDFLAGS)
+	echo "Libs: "$(LIBS)
 
 clean:
 	$(RM) -rf c.tab.cpp c.tab.hpp cc c.lex.cpp $(OBJS) *.ll *.bc
