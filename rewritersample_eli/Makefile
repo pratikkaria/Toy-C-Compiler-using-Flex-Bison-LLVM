@@ -2,12 +2,12 @@ CXX = clang++-6.0
 CC = clang-6.0
 CFLAGS = --std=c++14 
 
-LLVM_SRC_PATH = /usr/lib/llvm-6.0
+LLVM_SRC_PATH = /home/sandeep/Desktop/glamdring/llvm-project/llvm
 LLVM_BUILD_PATH = $(LLVM_SRC_PATH)/build
 
 LLVM_BIN_PATH = $(LLVM_SRC_PATH)/bin
 LLVM_LIBS=core mc
-LLVM_CONFIG_COMMAND = llvm-config 
+LLVM_CONFIG_COMMAND = $(LLVM_SRC_PATH)/llvm-config 
 LDFLAGS = `$(LLVM_CONFIG_COMMAND) --ldflags` -lpthread -ldl -lz -lncurses -rdynamic
 CLANG_BUILD_FLAGS = -L$(LLVM_SRC_PATH)/lib -I$(LLVM_SRC_PATH)/include
 
