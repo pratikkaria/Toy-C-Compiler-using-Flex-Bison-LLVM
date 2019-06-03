@@ -22,11 +22,11 @@ c.lex.cpp: c.l c.tab.hpp
 	flex -o c.lex.cpp -l c.l
 
 %.o: %.cpp
-	g++ -c $(CPPFLAGS) -o $@ $<
+	g++ -c $(CPPFLAGS) -o $@ $< -fpermissive
 
 
 cc: $(OBJS)
-	g++ -ggdb -g -O0 -o $@ $(OBJS) $(LIBS) $(LDFLAGS)
+	g++ -ggdb -g -O0 -o $@ $(OBJS) $(LIBS) $(LDFLAGS) -fpermissive
 
 test: cc test.c
 	@ rm test.ll; rm test.bc; make > /dev/null 2> /dev/null; ./cc test.c > /dev/null 2> test.ll; llvm-as test.ll;lli test.bc 
